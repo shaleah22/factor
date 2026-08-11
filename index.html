@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factoring out the GCF — drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16233D;
+    --ink-soft:#67748C;
+    --line:#16233D;
+    --card:#FFFFFF;
+    --bg:#EFEEEA;
+    --accent:#D8452F;
+    --wash:#FFE08A;
+    --wash-edge:#EFBF44;
+    --ask:#E9F0F9;
+    --ask-edge:#C4D6EC;
+    --good:#0F7A5A;
+    --good-bg:#E4F4ED;
+    --bad:#C2371F;
+    --num:#1B49B8;      /* coefficients */
+    --v0:#D8452F;       /* first letter  */
+    --v1:#0F7A5A;       /* second letter */
+    --v2:#7A4FBF;       /* third letter  */
+    --cell:90px;
+    --gap:26px;
+    --lab:80px;
+    --row:56px;
+    --big:30px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    display:flex;justify-content:center;padding:28px 14px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .pad{width:100%;max-width:700px}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 2px 16px}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:5px}
+  h1{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+  .score{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:right;line-height:1.6;white-space:nowrap;font-weight:600}
+  .score b{display:block;color:var(--ink);font-size:21px;letter-spacing:0}
+
+  /* ---------- level picker ---------- */
+  .levels{display:flex;gap:5px;background:#E3E2DD;padding:4px;border-radius:12px;margin:0 0 14px}
+  .lvlbtn{flex:1;border:none;background:transparent;color:var(--ink-soft);font-family:inherit;
+    font-size:13.5px;font-weight:600;padding:9px 6px;border-radius:9px;line-height:1.2;text-align:center;letter-spacing:-.01em}
+  .lvlbtn em{display:block;font-style:normal;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+    font-weight:600;opacity:.7;margin-top:3px}
+  .lvlbtn:hover{color:var(--ink)}
+  .lvlbtn.on{background:var(--card);color:var(--ink);box-shadow:0 2px 5px -2px rgba(22,35,61,.3)}
+  .lvlbtn.on em{color:var(--accent);opacity:1}
+
+  .opts{display:flex;justify-content:flex-end;margin:-6px 2px 12px}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:transparent;border:none;
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);padding:5px 4px}
+  .chip .tick{width:16px;height:16px;border-radius:5px;border:2px solid #C9C9C2;background:#fff;
+    display:inline-block;position:relative;transition:background .15s,border-color .15s}
+  .chip.on{color:var(--ink)}
+  .chip.on .tick{background:var(--accent);border-color:var(--accent)}
+  .chip.on .tick::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+  .chip:hover{color:var(--ink)}
+
+  .card{background:var(--card);border-radius:12px;padding:22px 26px 22px;box-shadow:0 12px 30px -18px rgba(22,35,61,.35),0 1px 3px rgba(22,35,61,.06)}
+
+  .slab{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:0 0 14px}
+
+  /* ---------- the division box ---------- */
+  .boxwrap{overflow-x:auto;padding-bottom:4px;margin-bottom:6px}
+  .box{display:grid;justify-content:start;align-items:end;font-size:var(--big);font-weight:500;white-space:nowrap}
+  .gcfcell{display:flex;align-items:center;justify-content:flex-end;gap:1px;padding:0 11px 9px 0;min-height:var(--row)}
+  .tcell{display:flex;align-items:center;justify-content:center;gap:6px;
+    border-bottom:3px solid var(--line);padding:6px 10px 9px;min-height:var(--row)}
+  .tcell.first{border-left:3px solid var(--line)}
+  .tcell.last{padding-right:16px}
+  .qcell{display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 10px 0;min-height:52px}
+  .qcell.empty{color:var(--ink-soft)}
+
+  .c{color:var(--num);padding:2px 3px;border-radius:6px}
+  .grp{display:inline-flex;align-items:center;gap:1px;padding:2px 3px;border-radius:6px}
+  .grp .c{padding:0}
+  .sign.neg{color:var(--num);font-size:.86em;padding:0 1px 0 0}
+  .sign.pos{color:var(--num);font-size:.86em;padding:0 1px 0 0}
+  .vp{padding:2px 3px;border-radius:6px}
+  .one{font-weight:600;padding:2px 1px}
+  .v0,.one.v0{color:var(--v0)}
+  .v1,.one.v1{color:var(--v1)}
+  .v2,.one.v2{color:var(--v2)}
+  .sign{color:var(--ink-soft);font-size:.8em;padding-right:1px}
+  .stem{font-weight:500}
+  .ghostnum{color:#C9C9C2}
+  sup{font-size:.56em;font-weight:600;vertical-align:super;line-height:0}
+
+  .asking{background:var(--ask);box-shadow:0 0 0 1.5px var(--ask-edge) inset}
+  .fresh{display:inline-block;animation:pop .3s ease-out}
+  @keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+
+  /* ---------- bringing it down ---------- */
+  .drop{display:flex;justify-content:center;padding-top:10px;animation:fall .32s ease-out both}
+  .arw{position:relative;display:block;width:2.5px;height:38px;background:var(--ink)}
+  .arw::after{content:"";position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);
+    border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid var(--ink)}
+  @keyframes fall{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+  .answer{font-size:var(--big);font-weight:600;margin:16px 0 2px;white-space:nowrap;overflow-x:auto;animation:fall .4s ease-out both}
+  .answer .paren{font-size:1.3em;font-weight:400;color:var(--ink-soft)}
+
+  /* ---------- ladder ---------- */
+  .work{margin-top:20px;padding-top:15px;border-top:1px dashed #DEDED8}
+  .wlab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin:0 0 10px 2px}
+  .lvl{display:flex;align-items:stretch}
+  .fcell{width:var(--lab);height:var(--row);display:flex;align-items:center;justify-content:flex-end;
+    padding-right:14px;font-size:27px;font-weight:500;color:var(--num)}
+  .fcell.br{border-right:3px solid var(--line)}
+  .terms{display:flex;align-items:stretch}
+  .terms.closed{border-bottom:3px solid var(--line)}
+  .ncell{width:var(--cell);height:var(--row);display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:500}
+  .slot{width:var(--cell);height:var(--row);display:flex;align-items:center;justify-content:center}
+
+  /* ---------- inputs ---------- */
+  input.cell{
+    width:64px;height:44px;text-align:center;font-family:inherit;font-size:26px;font-weight:500;color:var(--ink);
+    background:#fff;border:2px dashed var(--ask-edge);border-radius:9px;padding:0;outline:none;caret-color:var(--accent);
+  }
+  input.cell.exp{width:44px;height:34px;font-size:19px;align-self:flex-start;margin-top:-4px}
+  input.cell.mono{width:68px}
+  input.cell:focus{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 4px rgba(216,69,47,.12)}
+  input.cell.wrong{border-color:var(--bad);border-style:solid;animation:shake .3s}
+  @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+  /* ---------- coach ---------- */
+  .coach{border-top:1px solid #E6E6E1;margin-top:18px;padding-top:18px}
+  .prompt{font-size:19px;font-weight:500;line-height:1.35;margin:0 0 14px;letter-spacing:-.01em}
+  .prompt .n{color:var(--accent);font-weight:600}
+  .prompt .n.v0{color:var(--v0)}
+  .prompt .n.v1{color:var(--v1)}
+  .prompt .n.v2{color:var(--v2)}
+  .answerbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .frac{display:inline-flex;flex-direction:column;align-items:center;font-size:23px;font-weight:600;line-height:1.15;
+    margin:0 4px 14px 2px}
+  .frac .bot{border-top:2.5px solid currentColor;padding-top:2px;margin-top:2px}
+  .frac span{padding:0 8px}
+
+  button{font-family:inherit;cursor:pointer;border-radius:9px;transition:background .15s,color .15s,transform .08s}
+  button:active{transform:translateY(1px)}
+  .btn{height:42px;padding:0 20px;font-size:14px;font-weight:600;background:var(--ink);color:#fff;border:none}
+  .btn:hover{background:#2A3B5F}
+  .btn.ghost{background:transparent;color:var(--ink-soft);border:1.5px solid #DBDBD5}
+  .btn.ghost:hover{background:#F4F4F1;color:var(--ink)}
+  .btn.small{height:34px;padding:0 13px;font-size:12.5px}
+  button:focus-visible,input:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+
+  .msg{min-height:21px;margin-top:14px;font-size:14.5px;font-weight:500;line-height:1.4}
+  .msg.ok{color:var(--good)}
+  .msg.err{color:var(--bad)}
+  .msg.tip{color:var(--ink-soft)}
+
+  .done{background:var(--good-bg);border-radius:10px;padding:16px 18px}
+  .done h2{margin:0 0 8px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--good);font-weight:700}
+  .done .verify{font-size:13.5px;color:#3C6A5B;font-weight:500;line-height:1.7}
+
+  .tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:18px 2px 0}
+  .tools input{width:210px;height:34px;text-align:center;font-family:inherit;font-size:15px;font-weight:600;color:var(--ink);border:1.5px solid #DBDBD5;border-radius:9px;background:#fff;outline:none}
+  .tools span{font-size:13px;color:var(--ink-soft)}
+
+  @media (max-width:600px){
+    :root{--cell:74px;--lab:56px;--row:50px;--big:25px}
+    .card{padding:18px 16px}
+    .tcell{padding:5px 9px 8px;gap:5px}
+    .qcell{padding:11px 9px 0}
+    .gcfcell{padding-right:9px}
+    input.cell{width:54px;height:40px;font-size:22px}
+    input.cell.mono{width:66px}
+    input.cell.exp{width:38px}
+    .fcell{font-size:22px;padding-right:9px}
+    .ncell{font-size:22px}
+    .prompt{font-size:17px}
+    h1{font-size:20px}
+    .tools input{width:100%}
+    .arw{height:30px}
+    .lvlbtn{font-size:12.5px;padding:8px 2px}
+    .lvlbtn em{font-size:9px;letter-spacing:.05em}
+  }
+  @media (max-width:400px){
+    :root{--cell:58px;--lab:50px;--row:46px;--big:21px}
+    .tcell{padding:4px 6px 7px;gap:3px}
+    .qcell{padding:9px 6px 0}
+    input.cell{width:46px;height:36px;font-size:19px}
+    input.cell.mono{width:58px}
+    .ncell,.fcell{font-size:19px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="pad">
+
+  <div class="head">
+    <div>
+      <span class="eyebrow">Common factor</span>
+      <h1>Factoring out the GCF</h1>
+    </div>
+    <div class="score">solved<b id="solved">0</b></div>
+  </div>
+
+  <div class="levels" role="group" aria-label="Difficulty level">
+    <button class="lvlbtn" data-lv="easy" type="button">Easy<em>numbers only</em></button>
+    <button class="lvlbtn on" data-lv="medium" type="button">Medium<em>one variable</em></button>
+    <button class="lvlbtn" data-lv="hard" type="button">Hard<em>2+ variables</em></button>
+  </div>
+
+  <div class="opts">
+    <button class="chip" id="negLead" type="button" aria-pressed="false">
+      <span class="tick"></span>Start with a negative
+    </button>
+  </div>
+
+  <div class="card">
+    <p class="slab">Factor</p>
+    <div class="boxwrap"><div class="box" id="box"></div></div>
+    <div id="after"></div>
+    <div class="coach" id="coach"></div>
+  </div>
+
+  <div class="tools">
+    <button class="btn small ghost" id="newRandom">New problem</button>
+    <button class="btn small ghost" id="restart">Start over</button>
+    <span>or set your own</span>
+    <input id="cexp" value="40g^5 + 50g^6" aria-label="your own expression">
+    <button class="btn small" id="useCustom">Use this</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const gcd = (a,b)=>{ while(b){ [a,b]=[b,a%b]; } return a; };
+  const gcdAll = xs => xs.reduce((a,b)=>gcd(a,b));
+
+  let S, solved = 0, tAdvance = null, tNudge = null, docKey = null, level = 'medium', negLead = false;
+
+  /* ---------------- notation ---------------- */
+
+  const signed = n => (n < 0 ? '&minus;' : '') + Math.abs(n);
+  const numVal = raw => Number(String(raw).replace(/[\u2212\u2013\u2014]/g,'-').replace(/\s/g,''));
+  /* the common factor with its sign — negative when the leading term is */
+  const G = () => S.gs * S.g;
+
+  function power(L,e){
+    if(e === 0) return '';
+    return L + (e > 1 ? '<sup>'+e+'</sup>' : '');
+  }
+  /* plain monomial, simplified the way you would write a final answer */
+  function mono(c,ex,letters){
+    const v = letters.map(L=>power(L,ex[L]||0)).join('');
+    if(!v) return String(c);
+    return (c === 1 ? '' : c) + v;
+  }
+  /* monomial with each piece in its own colour, for the box */
+  function termHTML(t,opt){
+    opt = opt || {};
+    const vars = S.letters.filter(L=>(t.ex[L]||0) > 0);
+    const neg = t.sign < 0;
+    let h = '';
+    let num = '';
+    if(neg) num += '<span class="sign neg">&minus;</span>';
+    else if(opt.sign) num += '<span class="sign pos">+</span>';
+    if(t.c !== 1 || !vars.length) num += '<span class="c">'+t.c+'</span>';
+    if(num) h += '<span class="grp'+(opt.hlNum ? ' asking' : '')+'">'+num+'</span>';
+    S.letters.forEach((L,li)=>{
+      const e = t.ex[L] || 0;
+      if(!e) return;
+      h += '<span class="vp v'+li+(opt.hlVar === L ? ' asking' : '')+'">'+power(L,e)+'</span>';
+    });
+    return h;
+  }
+  function exprText(terms,letters){
+    return terms.map((t,i)=>(i ? (t.sign < 0 ? ' &minus; ' : ' + ') : (t.sign < 0 ? '&minus;' : ''))
+      + mono(t.c,t.ex,letters)).join('');
+  }
+  /* the finished GCF, e.g. 6b⁴n or −7 */
+  function gcfHTML(){
+    let h = '';
+    if(S.gs < 0) h += '<span class="sign neg">&minus;</span>';
+    const anyVar = S.letters.some(L=>(S.ge[L]||0) > 0);
+    if(S.g !== 1 || !anyVar) h += '<span class="c">'+S.g+'</span>';
+    S.letters.forEach((L,li)=>{
+      const e = S.ge[L] || 0;
+      if(e) h += '<span class="vp v'+li+'">'+power(L,e)+'</span>';
+    });
+    return h;
+  }
+  function gcfPlain(){ return (S.gs < 0 ? '&minus;' : '') + mono(S.g,S.ge,S.letters); }
+  /* same thing, bracketed when negative, for the multiply-back check */
+  function gcfProd(){ return S.gs < 0 ? '(' + gcfPlain() + ')' : gcfPlain(); }
+  function listHTML(xs){
+    return xs.map(x=>'<span class="n">'+x+'</span>').join(', ').replace(/,([^,]*)$/,' and$1');
+  }
+  const bothAll = () => S.terms.length > 2 ? 'all of them' : 'both of them';
+
+  /* ---------------- problems ---------------- */
+
+  function start(p){
+    S = { letters:p.letters, terms:p.terms, g:p.g, ge:p.ge, gs:p.gs || 1,
+          phase:'num', qi:0, vi:0, gotG:false,
+          qc:p.terms.map(()=>undefined),
+          qv:p.terms.map(()=>({})),
+          gp:{}, lad:null, msg:'', kind:'', fresh:null };
+    say(S.gs < 0
+        ? 'The first term is negative, so the factor comes out negative too.'
+        : !S.letters.length ? 'Just numbers here — find the biggest factor they share.'
+        : S.letters.length === 1 ? 'Numbers first, then the letter.'
+        : 'Numbers first, then one letter at a time.','tip');
+    render();
+  }
+
+  function randomProblem(lv){
+    lv = lv || level;
+    const pool = ['x','y','g','n','a','b','p','z','d','m'];
+    /* easy: no letters at all — hard: two or three of them */
+    const nL = lv === 'easy' ? 0
+             : lv === 'medium' ? 1
+             : (Math.random() < 0.65 ? 2 : 3);
+    const letters = [];
+    while(letters.length < nL){
+      const L = pool[Math.floor(Math.random()*pool.length)];
+      if(!letters.includes(L)) letters.push(L);
+    }
+    /* easy stays at two numbers; the other levels can run to three terms */
+    const k = (lv === 'easy' || nL === 3) ? 2 : (Math.random() < 0.5 ? 2 : 3);
+    const cap = lv === 'easy' ? 120 : 400;
+    let g, cs;
+    for(;;){
+      g  = 2 + Math.floor(Math.random()*11);            /* 2..12 */
+      cs = []; for(let i=0;i<k;i++) cs.push(1 + Math.floor(Math.random()*8));
+      if(cs.every(c=>c === 1)) continue;
+      if(gcdAll(cs) !== 1) continue;
+      if(cs.some(c=>c*g > cap)) continue;
+      /* with no letters the numbers themselves have to differ */
+      if(!nL && new Set(cs).size !== cs.length) continue;
+      if(!nL && cs.includes(1) && k === 2) continue;    /* avoid g + something */
+      break;
+    }
+    const ge = {}, exs = [];
+    for(let i=0;i<k;i++) exs.push({});
+    letters.forEach((L,idx)=>{
+      /* on hard, a later letter sometimes goes missing from one term */
+      ge[L] = (lv === 'hard' && idx > 0 && Math.random() < 0.3)
+            ? 0
+            : 1 + Math.floor(Math.random()*3);          /* 1..3 */
+      const extra = [0,1,2,3].sort(()=>Math.random()-0.5).slice(0,k);
+      if(!extra.includes(0)) extra[Math.floor(Math.random()*k)] = 0;
+      extra.forEach((e,i)=>{ exs[i][L] = ge[L] + e; });
+    });
+    const terms = cs.map((c,i)=>({ c:c*g, ex:exs[i], sign:1 }));
+    terms.sort((a,b)=>{
+      const da = letters.reduce((s,L)=>s+a.ex[L],0), db = letters.reduce((s,L)=>s+b.ex[L],0);
+      return db - da;
+    });
+    /* easy problems lean negative — subtraction is the part that trips people up */
+    const negChance = lv === 'easy' ? 0.65 : 0.35;
+    for(let i=1;i<terms.length;i++) if(Math.random() < negChance) terms[i].sign = -1;
+    /* the toggle: sometimes flip the leading term, so the factor comes out negative */
+    if(negLead && Math.random() < 0.8) terms[0].sign = -1;
+    return { letters, terms, g, ge, gs:terms[0].sign };
+  }
+
+  /* ---------------- parsing ---------------- */
+
+  const SUP = '\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079';
+  function tidy(raw){
+    return String(raw).toLowerCase()
+      .replace(/[\s*]/g,'')
+      .replace(/[\u2212\u2013\u2014]/g,'-')
+      .replace(/[\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079]+/g,
+        m => '^' + [...m].map(ch=>SUP.indexOf(ch)).join(''));
+  }
+  function parseMono(raw){
+    const s = tidy(raw);
+    if(s === '') return null;
+    const m = s.match(/^(\d+)?((?:[a-z](?:\^?\d+)?)*)$/);
+    if(!m) return null;
+    if(m[1] === undefined && !m[2]) return null;
+    const ex = {}, re = /([a-z])(?:\^?(\d+))?/g;
+    let g;
+    while((g = re.exec(m[2]))){
+      const L = g[1];
+      if(ex[L] !== undefined) return null;
+      const e = g[2] === undefined ? 1 : parseInt(g[2],10);
+      if(e > 12) return null;
+      if(e > 0) ex[L] = e;
+    }
+    return { c: m[1] !== undefined ? parseInt(m[1],10) : 1, ex };
+  }
+  function parseExpr(raw){
+    const s = tidy(raw);
+    const parts = s.match(/[+-]?[^+-]+/g);
+    if(!parts) return null;
+    if(parts.length < 2 || parts.length > 3) return { err:'Use two or three terms.' };
+    const terms = [], letters = [];
+    for(const part of parts){
+      const sign = part[0] === '-' ? -1 : 1;
+      const m = parseMono(part.replace(/^[+-]/,''));
+      if(!m || m.c < 1) return null;
+      Object.keys(m.ex).forEach(L=>{ if(!letters.includes(L)) letters.push(L); });
+      terms.push({ c:m.c, ex:m.ex, sign });
+    }
+    if(letters.length > 3) return { err:'Three letters at most.' };
+    const gs = terms[0].sign;
+    if(!letters.length){
+      const gn = gcdAll(terms.map(t=>t.c));
+      if(new Set(terms.map(t=>t.c)).size !== terms.length)
+        return { err:'Two terms are alike — combine them first.' };
+      if(gn === 1 && gs > 0) return { err:'These numbers share nothing but 1 — nothing to pull out.' };
+      return { letters, terms, g:gn, ge:{}, gs };
+    }
+    const key = t => letters.map(L=>t.ex[L]||0).join(',');
+    if(new Set(terms.map(key)).size !== terms.length) return { err:'Two terms are alike — combine them first.' };
+    const g = gcdAll(terms.map(t=>t.c)), ge = {};
+    letters.forEach(L=>{ ge[L] = Math.min(...terms.map(t=>t.ex[L]||0)); });
+    if(g === 1 && gs > 0 && letters.every(L=>ge[L] === 0))
+      return { err:'These terms share no common factor — nothing to pull out.' };
+    return { letters, terms, g, ge, gs };
+  }
+  function toText(p){
+    return p.terms.map((t,i)=>(i ? (t.sign < 0 ? ' - ' : ' + ') : (t.sign < 0 ? '-' : ''))
+      + t.c + p.letters.map(L=>{
+          const e = t.ex[L] || 0;
+          return e === 0 ? '' : L + (e > 1 ? '^'+e : '');
+        }).join('')).join('');
+  }
+
+  /* ---------------- the box ---------------- */
+
+  function gcfCellHTML(){
+    const P = S.phase;
+    let h = '';
+    if(S.gotG) h += '<span class="c'+(S.fresh === 'g' ? ' fresh' : '')+'">'+signed(G())+'</span>';
+    else if(P === 'num' || P === 'lmul')
+      h += '<input class="cell" id="ans"'
+         + (S.terms.some(t=>t.sign < 0) ? '' : ' inputmode="numeric"')
+         + ' autocomplete="off" aria-label="greatest common factor of the numbers, sign included">';
+    else h += '<span class="ghostnum">?</span>';
+    S.letters.forEach((L,li)=>{
+      const e = S.gp[L];
+      if(e !== undefined){
+        if(e > 0) h += '<span class="vp v'+li+(S.fresh === 'p'+li ? ' fresh' : '')+'">'+power(L,e)+'</span>';
+      } else if(P === 'pow' && li === S.vi){
+        h += '<span class="stem v'+li+'">'+L+'</span>'
+           + '<input class="cell exp" id="ans" inputmode="numeric" autocomplete="off" aria-label="highest power of '+L+'">';
+      }
+    });
+    return h;
+  }
+
+  function quotCellHTML(i){
+    const P = S.phase, t = S.terms[i];
+    let h = '';
+    if(S.qc[i] !== undefined) h += '<span class="c'+(S.fresh === 'c'+i ? ' fresh' : '')+'">'+signed(S.qc[i])+'</span>';
+    else if(P === 'numq' && i === S.qi)
+      h += '<input class="cell" id="ans" autocomplete="off" aria-label="term '+(i+1)+' number divided by the common factor, sign included">';
+    S.letters.forEach((L,li)=>{
+      const e = S.qv[i][L];
+      if(e !== undefined){
+        h += e === 0
+          ? '<span class="one v'+li+(S.fresh === 'v'+li+'.'+i ? ' fresh' : '')+'">(1)</span>'
+          : '<span class="vp v'+li+(S.fresh === 'v'+li+'.'+i ? ' fresh' : '')+'">'+power(L,e)+'</span>';
+      } else if(P === 'vq' && li === S.vi && i === S.qi){
+        h += '<input class="cell mono" id="ans" autocomplete="off" aria-label="'+L+' left in term '+(i+1)+'">';
+      }
+    });
+    return h;
+  }
+
+  function render(){
+    const P = S.phase, T = S.terms, n = T.length;
+    const hlNum  = (P === 'num' || P === 'lfac' || P === 'ldiv' || P === 'lmul');
+    const curL   = (P === 'pow' || P === 'vq') ? S.letters[S.vi] : null;
+    const box = $('box');
+    box.style.gridTemplateColumns = 'max-content repeat('+n+',max-content)';
+
+    let h = '<div class="gcfcell" style="grid-column:1;grid-row:1">'+gcfCellHTML()+'</div>';
+    T.forEach((t,i)=>{
+      const hv = (P === 'pow') ? curL : ((P === 'vq' && i === S.qi) ? curL : null);
+      const hn = hlNum || (P === 'numq' && i === S.qi);
+      h += '<div class="tcell'+(i === 0 ? ' first' : '')+(i === n-1 ? ' last' : '')
+         + '" style="grid-column:'+(i+2)+';grid-row:1">'
+         + termHTML(t,{hlNum:hn,hlVar:hv,sign:i > 0}) + '</div>';
+    });
+    T.forEach((t,i)=>{
+      h += '<div class="qcell" style="grid-column:'+(i+2)+';grid-row:2">'+quotCellHTML(i)+'</div>';
+    });
+    if(P === 'done'){
+      h += '<div class="drop" style="grid-column:1;grid-row:3;animation-delay:0s"><span class="arw"></span></div>';
+      T.forEach((t,i)=>{
+        h += '<div class="drop" style="grid-column:'+(i+2)+';grid-row:3;animation-delay:'
+           + ((i+1)*0.13).toFixed(2)+'s"><span class="arw"></span></div>';
+      });
+    }
+    box.innerHTML = h;
+
+    $('after').innerHTML = (P === 'done' ? answerHTML() : '') + ladderHTML();
+    $('coach').innerHTML = coachHTML();
+    wire();
+    const inp = $('ans'); if(inp) inp.focus();
+    S.fresh = null;
+  }
+
+  function answerHTML(){
+    const inner = S.terms.map((t,i)=>{
+      const q = mono(Math.abs(S.qc[i]), S.qv[i], S.letters);
+      return (i ? (S.qc[i] < 0 ? ' <span class="sign">&minus;</span> ' : ' <span class="sign">+</span> ')
+                : (S.qc[i] < 0 ? '<span class="sign">&minus;</span>' : '')) + q;
+    }).join('');
+    return '<div class="answer" style="animation-delay:'+((S.terms.length+1)*0.13).toFixed(2)+'s">'
+         + gcfHTML() + '<span class="paren">(</span>' + inner + '<span class="paren">)</span></div>';
+  }
+
+  /* ---------------- ladder (optional helper for the numbers) ---------------- */
+
+  const lrow  = () => S.lad.rows[S.lad.rows.length-1];
+  const lprev = () => S.lad.rows[S.lad.rows.length-2];
+  const lfacs = () => S.lad.rows.filter(r=>r.f !== null).map(r=>r.f);
+
+  function openLadder(){
+    S.lad = { rows:[{ f:null, ns:S.terms.map(t=>t.c) }], li:0 };
+    S.phase = 'lfac';
+    say(S.terms.some(t=>t.sign < 0)
+        ? 'Signs stay out of this part — work with the sizes of the numbers.'
+        : 'Pull out any common factor you can spot — small ones are fine.','tip');
+    render();
+  }
+  function closeLadder(){
+    S.lad = null; S.phase = 'num'; say('','');
+    render();
+  }
+  function ladderHTML(){
+    if(!S.lad) return '';
+    const P = S.phase, R = S.lad.rows, k = S.terms.length;
+    let h = '<div class="work"><div class="wlab">Breaking the numbers down</div>';
+    R.forEach((r,i)=>{
+      const isLast = i === R.length-1;
+      const bracket = !isLast || P === 'lfac';
+      let fc;
+      if(r.f === null && isLast && P === 'lfac')
+        fc = '<div class="fcell br"><input class="cell" id="ans" inputmode="numeric" autocomplete="off" aria-label="common factor"></div>';
+      else if(r.f === null)
+        fc = '<div class="fcell'+(bracket ? ' br' : '')+'"></div>';
+      else
+        fc = '<div class="fcell'+(bracket ? ' br' : '')+'"><span class="'+(S.fresh === 'lf'+i ? 'fresh' : '')+'">'+r.f+'</span></div>';
+
+      let cells = '';
+      for(let j=0;j<k;j++){
+        if(isLast && P === 'ldiv' && j === S.lad.li)
+          cells += '<div class="slot"><input class="cell" id="ans" inputmode="numeric" autocomplete="off" aria-label="quotient"></div>';
+        else if(r.ns[j] === undefined || r.ns[j] === null)
+          cells += '<div class="ncell"></div>';
+        else
+          cells += '<div class="ncell"><span class="'+(S.fresh === 'ln'+i+'.'+j ? 'fresh' : '')+'">'+r.ns[j]+'</span></div>';
+      }
+      h += '<div class="lvl">'+fc+'<div class="terms'+(bracket ? ' closed' : '')+'">'+cells+'</div></div>';
+    });
+    return h + '</div>';
+  }
+
+  /* ---------------- coach ---------------- */
+
+  function coachHTML(){
+    const P = S.phase, T = S.terms;
+    let prompt = '', extra = '';
+
+    if(P === 'num'){
+      prompt = 'What is the largest number that divides ' + listHTML(T.map(t=>signed(t.sign * t.c))) + '?';
+      extra = '<div class="answerbar"><button class="btn ghost small" id="hint">Hint</button>'
+            + '<button class="btn ghost small" id="ladder">Break it down</button></div>';
+    }
+    else if(P === 'lfac'){
+      const ns = lrow().ns, first = S.lad.rows.length === 1;
+      prompt = (first ? 'What number divides all of ' : 'Keep going — what divides ') + listHTML(ns) + '?';
+      extra = '<div class="answerbar"><button class="btn ghost small" id="hint">Hint</button>'
+            + (first ? '<button class="btn ghost small" id="skip">I can see it</button>' : '')
+            + '</div>';
+    }
+    else if(P === 'ldiv'){
+      const p = lprev(), j = S.lad.li;
+      prompt = '<span class="n">'+p.ns[j]+' &divide; '+p.f+'</span> = ?';
+      extra = btns();
+    }
+    else if(P === 'lmul'){
+      prompt = 'Nothing is left to pull out. Multiply straight down the left side: '
+             + '<span class="n">'+lfacs().join(' &times; ')+'</span>'
+             + (S.gs < 0 ? ' &mdash; and keep the minus from the first term.' : '');
+      extra = btns();
+    }
+    else if(P === 'numq'){
+      const t = T[S.qi];
+      prompt = 'Divide <span class="n">'+signed(t.sign * t.c)+'</span> by <span class="n">'+signed(G())
+             + '</span> and write it under the term, sign and all.';
+      extra = btns();
+    }
+    else if(P === 'pow'){
+      const L = S.letters[S.vi];
+      prompt = 'What is the highest power of <span class="n v'+S.vi+'">'+L+'</span> we can get out of '+bothAll()+'?';
+      extra = btns();
+    }
+    else if(P === 'vq'){
+      const L = S.letters[S.vi], t = T[S.qi], v = 'v' + S.vi;
+      prompt = 'Take <span class="n '+v+'">'+power(L,S.ge[L])+'</span> out of <span class="n">'+mono(t.c,t.ex,S.letters)+'</span>.';
+      extra = '<div class="answerbar"><div class="frac '+v+'"><span class="top">'+power(L,t.ex[L]||0)+'</span>'
+            + '<span class="bot">'+power(L,S.ge[L])+'</span></div>'
+            + '<button class="btn ghost small" id="hint">Hint</button></div>';
+    }
+    else if(P === 'ready'){
+      prompt = 'That is the whole common factor. Bring it down.';
+      extra = '<div class="answerbar"><button class="btn" id="bring">Bring it down</button></div>';
+    }
+    else if(P === 'done'){
+      const check = S.terms.map((t,i)=>{
+        const q = mono(Math.abs(S.qc[i]), S.qv[i], S.letters);
+        return gcfProd() + ' &middot; ' + (S.qc[i] < 0 ? '(&minus;'+q+')' : q)
+             + ' = ' + (t.sign < 0 ? '&minus;' : '') + mono(t.c,t.ex,S.letters);
+      }).join('<br>');
+      return '<div class="done"><h2>Factored</h2>'
+           + '<div class="verify">Multiply back to check:<br>'+check+'</div></div>'
+           + '<div class="answerbar" style="margin-top:16px"><button class="btn" id="next">Next problem</button>'
+           + '<button class="btn ghost" id="again">Redo this one</button></div>';
+    }
+    return '<p class="prompt">'+prompt+'</p>'+extra+'<div class="msg '+(S.kind||'')+'">'+(S.msg||'')+'</div>';
+  }
+  const btns = () => '<div class="answerbar"><button class="btn ghost small" id="hint">Hint</button></div>';
+
+  function wire(){
+    const inp = $('ans');
+    if(inp){
+      inp.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); clearTimers(); submit(true); }});
+      inp.addEventListener('input', onType);
+    }
+    const h = $('hint');   if(h)  h.onclick = hint;
+    const ld = $('ladder');if(ld) ld.onclick = openLadder;
+    const sk = $('skip');  if(sk) sk.onclick = closeLadder;
+    const br = $('bring'); if(br){ br.onclick = bringDown; br.focus(); }
+    const nx = $('next');  if(nx){ nx.onclick = nextProblem; nx.focus(); }
+    const ag = $('again'); if(ag) ag.onclick = redo;
+
+    if(docKey){ document.removeEventListener('keydown', docKey); docKey = null; }
+    if(S.phase === 'done' || S.phase === 'ready'){
+      docKey = e=>{
+        const tag = (e.target && e.target.tagName) || '';
+        if(e.key === 'Enter' && !/^(INPUT|TEXTAREA|BUTTON)$/.test(tag)){
+          e.preventDefault();
+          S.phase === 'ready' ? bringDown() : nextProblem();
+        }
+      };
+      document.addEventListener('keydown', docKey);
+    }
+  }
+
+  /* ---------------- stages ---------------- */
+
+  function afterNumber(){
+    S.gotG = true;
+    S.fresh = 'g';
+    if(S.g === 1 && S.gs > 0){
+      S.terms.forEach((t,i)=>{ S.qc[i] = t.sign * t.c; });
+      say('Nothing comes out of the numbers, so they stay as they are.','tip');
+      startLetters();
+    } else {
+      S.phase = 'numq'; S.qi = 0;
+      say('Now divide each number by '+signed(G())+'.','ok');
+    }
+  }
+
+  function startLetters(){
+    S.vi = 0;
+    nextLetter();
+  }
+
+  function nextLetter(){
+    if(S.vi >= S.letters.length){
+      S.phase = 'ready';
+      say('','');
+      return;
+    }
+    const L = S.letters[S.vi];
+    if((S.ge[L] || 0) === 0){
+      S.gp[L] = 0;
+      S.terms.forEach((t,i)=>{ S.qv[i][L] = t.ex[L] || 0; });
+      say('One term has no '+L+' at all, so no '+L+' comes out. Every term keeps its own.','tip');
+      S.vi++;
+      nextLetter();
+      return;
+    }
+    S.phase = 'pow'; S.qi = 0;
+    if(S.vi === 0 && (S.g !== 1 || S.gs < 0))
+      say(S.letters.length === 1 ? 'Numbers done. Now the letter.'
+                                 : 'Numbers done. Now the letters, one at a time.','ok');
+  }
+
+  function bringDown(){
+    S.phase = 'done';
+    solved++; $('solved').textContent = solved;
+    say('','');
+    render();
+  }
+
+  /* ---------------- checking ---------------- */
+
+  function say(m,k){ S.msg = m; S.kind = k; }
+  function softMsg(m){ const e = document.querySelector('.msg'); if(e && m){ e.className = 'msg tip'; e.innerHTML = m; } }
+  function bad(m){
+    const inp = $('ans');
+    if(inp){ inp.classList.add('wrong'); setTimeout(()=>inp.classList.remove('wrong'),320); inp.select(); }
+    say(m,'err');
+    const e = document.querySelector('.msg'); if(e){ e.className = 'msg err'; e.innerHTML = m; }
+  }
+
+  function isLadFactor(v){ return v > 1 && lrow().ns.every(x=>x % v === 0); }
+
+  function wanted(){
+    const P = S.phase;
+    if(P === 'num' || P === 'lmul') return G();
+    if(P === 'numq') return S.terms[S.qi].sign * S.terms[S.qi].c / G();
+    if(P === 'pow')  return S.ge[S.letters[S.vi]];
+    if(P === 'vq'){ const L = S.letters[S.vi]; return (S.terms[S.qi].ex[L] || 0) - S.ge[L]; }
+    if(P === 'ldiv'){ const p = lprev(); return p.ns[S.lad.li] / p.f; }
+    return NaN;
+  }
+
+  function nudge(v){
+    const P = S.phase, T = S.terms;
+    if(P === 'lfac'){
+      const ns = lrow().ns, miss = ns.filter(x=>x % v !== 0);
+      if(v <= 1) return '1 divides everything but shrinks nothing. Pick a factor above 1.';
+      return v + ' does not divide ' + miss.join(' or ') + ' evenly.';
+    }
+    if(P === 'ldiv'){ const p = lprev(); return 'How many ' + p.f + 's fit into ' + p.ns[S.lad.li] + '?'; }
+    if(P === 'lmul'){
+      if(Math.abs(v) === S.g) return S.gs < 0
+        ? 'That is the right size. The first term is negative, so write &minus;' + S.g + '.'
+        : 'Drop the minus — the first term is positive, so the factor is too.';
+      return 'Multiply every number in the left column: ' + lfacs().join(' &times; ') + '.';
+    }
+    if(P === 'num'){
+      const a = Math.abs(v);
+      if(v === 0) return 'Zero divides nothing. Pick a whole number.';
+      if(a === S.g) return S.gs < 0
+        ? 'Right size. The first term is negative, so take the minus out with it: &minus;' + S.g + '.'
+        : 'Right size, but the first term is positive — leave the minus off.';
+      if(a === 1) return '1 divides everything but pulls nothing out. Aim higher.';
+      const miss = T.filter(t=>t.c % a !== 0);
+      if(miss.length) return a + ' does not divide ' + miss.map(t=>t.c).join(' or ') + ' evenly.';
+      return a + ' divides them all, but a bigger number does too.';
+    }
+    if(P === 'numq'){
+      const want = wanted(), t = T[S.qi];
+      if(v === -want) return 'Right size, wrong sign. ' + signed(t.sign * t.c) + ' &divide; ' + signed(G())
+                           + ' is ' + (want < 0 ? 'negative' : 'positive') + '.';
+      return 'How many ' + S.g + 's fit into ' + t.c + '?';
+    }
+    if(P === 'pow'){
+      const L = S.letters[S.vi], lo = S.ge[L];
+      if(v > lo) return 'One term only has ' + power(L,lo) + ' — you cannot take more than that.';
+      return 'You can take more than that. Every term has at least ' + power(L,lo) + '.';
+    }
+    if(P === 'vq'){
+      const L = S.letters[S.vi], a = S.terms[S.qi].ex[L] || 0, b = S.ge[L], want = a - b;
+      if(want === 0) return power(L,a) + ' &divide; ' + power(L,b) + ' cancels completely — write 1.';
+      return 'Subtract the exponents: ' + a + ' &minus; ' + b + '.';
+    }
+    return '';
+  }
+
+  function submit(loud){
+    const inp = $('ans'); if(!inp) return;
+    const raw = (inp.value || '').trim();
+    if(raw === ''){ if(loud) bad('Type an answer first.'); return; }
+    const P = S.phase;
+
+    if(P === 'lfac'){
+      const v = Number(raw);
+      if(!Number.isInteger(v) || v < 1){ if(loud) bad('Whole numbers only.'); return; }
+      if(!isLadFactor(v)){ if(loud) bad(nudge(v)); return; }
+      lrow().f = v;
+      S.lad.rows.push({ f:null, ns:[] });
+      S.lad.li = 0;
+      S.phase = 'ldiv'; S.fresh = 'lf' + (S.lad.rows.length-2);
+      say('Now split each number by ' + v + '.','ok');
+      render(); return;
+    }
+
+    if(P === 'ldiv'){
+      const v = Number(raw);
+      if(!Number.isInteger(v)){ if(loud) bad('Whole numbers only.'); return; }
+      if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
+      const r = lrow(), j = S.lad.li;
+      r.ns[j] = v; S.fresh = 'ln' + (S.lad.rows.length-1) + '.' + j;
+      S.lad.li++;
+      if(S.lad.li >= S.terms.length){
+        if(gcdAll(r.ns) === 1){ S.phase = 'lmul'; say('That row has nothing left in common.','ok'); }
+        else { S.phase = 'lfac'; say('These still share a factor. Add another rung.','tip'); }
+      } else say('','');
+      render(); return;
+    }
+
+    if(P === 'num' || P === 'lmul'){
+      const v = numVal(raw);
+      if(!Number.isInteger(v) || v === 0){ if(loud) bad('Whole numbers only.'); return; }
+      if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
+      afterNumber();
+      render(); return;
+    }
+
+    if(P === 'numq'){
+      const v = numVal(raw);
+      if(!Number.isInteger(v) || v === 0){ if(loud) bad('Whole numbers only.'); return; }
+      if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
+      S.qc[S.qi] = v; S.fresh = 'c' + S.qi;
+      S.qi++;
+      if(S.qi >= S.terms.length) startLetters(); else say('','');
+      render(); return;
+    }
+
+    if(P === 'pow'){
+      const v = Number(raw);
+      if(!Number.isInteger(v) || v < 0){ if(loud) bad('Type the exponent as a whole number.'); return; }
+      if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
+      const L = S.letters[S.vi];
+      S.gp[L] = v; S.fresh = 'p' + S.vi;
+      S.phase = 'vq'; S.qi = 0;
+      say('Now take ' + power(L,v) + ' out of every term.','ok');
+      render(); return;
+    }
+
+    if(P === 'vq'){
+      const L = S.letters[S.vi];
+      const m = parseMono(raw);
+      if(!m){ if(loud) bad('Write it as 1, ' + L + ', or ' + L + '^2.'); return; }
+      const other = Object.keys(m.ex).filter(x=>x !== L);
+      if(m.c !== 1 || other.length){ if(loud) bad('Just the ' + L + ' part — the numbers are already done.'); return; }
+      const e = m.ex[L] || 0;
+      if(e !== wanted()){ if(loud) bad(nudge(m)); return; }
+      S.qv[S.qi][L] = e; S.fresh = 'v' + S.vi + '.' + S.qi;
+      S.qi++;
+      if(S.qi >= S.terms.length){
+        S.vi++;
+        const more = S.vi < S.letters.length;
+        nextLetter();
+        if(more && S.phase === 'pow') say('Now the ' + S.letters[S.vi] + '&rsquo;s.','ok');
+      } else say('','');
+      render(); return;
+    }
+  }
+
+  function hint(){
+    const P = S.phase, T = S.terms;
+    let m = '';
+    if(P === 'num'){
+      if(T.every(t=>t.c % 2 === 0)) m = 'They are all even, so 2 goes in — keep pushing higher.';
+      else if(T.every(t=>t.c % 5 === 0)) m = 'They all end in 0 or 5, so start at 5.';
+      else if(T.every(t=>t.c % 3 === 0)) m = 'Every digit sum is a multiple of 3, so start at 3.';
+      else m = 'The answer cannot be bigger than ' + Math.min(...T.map(t=>t.c)) + '. Work down from its factors.';
+      m += ' Or break it down one factor at a time.';
+      if(S.gs < 0) m += ' And the first term is negative, so your factor is negative too.';
+    }
+    else if(P === 'lfac'){
+      const ns = lrow().ns;
+      if(ns.every(x=>x % 2 === 0)) m = 'They are all even, so 2 always works.';
+      else if(ns.every(x=>x % 3 === 0)) m = 'Every digit sum is a multiple of 3 — try 3.';
+      else if(ns.every(x=>x % 5 === 0)) m = 'They all end in 0 or 5 — try 5.';
+      else m = 'Try ' + smallestFactor(gcdAll(ns)) + '.';
+    }
+    else if(P === 'ldiv'){ const p = lprev(); m = 'Count by ' + p.f + ' up to ' + p.ns[S.lad.li] + '.'; }
+    else if(P === 'lmul'){
+      m = 'Multiply the left column: ' + lfacs().join(' &times; ') + '.';
+      if(S.gs < 0) m += ' Then make it negative — the first term is.';
+    }
+    else if(P === 'numq'){
+      const t = T[S.qi], want = wanted();
+      m = 'Count by ' + S.g + ' up to ' + t.c + '. ';
+      m += 'A ' + (t.sign < 0 ? 'negative' : 'positive') + ' divided by a ' + (G() < 0 ? 'negative' : 'positive')
+         + ' is ' + (want < 0 ? 'negative' : 'positive') + '.';
+    }
+    else if(P === 'pow'){
+      const L = S.letters[S.vi];
+      m = 'Find the term with the fewest ' + L + '&rsquo;s — that is your limit.';
+    }
+    else if(P === 'vq'){
+      const L = S.letters[S.vi], a = T[S.qi].ex[L] || 0, b = S.ge[L];
+      m = a === b
+        ? 'Every ' + L + ' cancels here, and what is left is 1.'
+        : 'Subtract the exponents: ' + a + ' &minus; ' + b + '.';
+    }
+    softMsg(m);
+    const inp = $('ans'); if(inp) inp.focus();
+  }
+
+  function smallestFactor(n){ for(let i=2;i<=n;i++){ if(n % i === 0) return i; } return n; }
+
+  /* ---------------- typing ---------------- */
+
+  function clearTimers(){ clearTimeout(tAdvance); clearTimeout(tNudge); }
+
+  function onType(){
+    clearTimers();
+    const raw = ($('ans').value || '').trim();
+    if(raw === '') return;
+    const P = S.phase;
+    if(P === 'lfac'){
+      const v = Number(raw);
+      if(!Number.isInteger(v)) return;
+      if(isLadFactor(v)) tAdvance = setTimeout(()=>submit(false), 900);
+      else tNudge = setTimeout(()=>{ if(v > 1) softMsg(nudge(v)); }, 1500);
+      return;
+    }
+    if(P === 'num' || P === 'lmul' || P === 'ldiv' || P === 'numq' || P === 'pow'){
+      const v = (P === 'numq' || P === 'num' || P === 'lmul') ? numVal(raw) : Number(raw);
+      if(!Number.isInteger(v)) return;
+      if(v === wanted()) tAdvance = setTimeout(()=>submit(false), 450);
+      else tNudge = setTimeout(()=>softMsg(nudge(v)), 1500);
+      return;
+    }
+    if(P === 'vq'){
+      const L = S.letters[S.vi], m = parseMono(raw);
+      if(!m || m.c !== 1) return;
+      if(Object.keys(m.ex).filter(x=>x !== L).length) return;
+      if((m.ex[L] || 0) === wanted()) tAdvance = setTimeout(()=>submit(false), 550);
+      else tNudge = setTimeout(()=>softMsg(nudge(m)), 1500);
+    }
+  }
+
+  /* ---------------- controls ---------------- */
+
+  function nextProblem(){
+    const p = randomProblem();
+    $('cexp').value = toText(p);
+    start(p);
+  }
+  function redo(){
+    start({ letters:S.letters, terms:S.terms, g:S.g, ge:S.ge, gs:S.gs });
+  }
+
+  function paintLevel(){
+    document.querySelectorAll('.lvlbtn').forEach(b=>{
+      const on = b.dataset.lv === level;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  function setLevel(lv){
+    if(lv === level) { nextProblem(); return; }
+    level = lv;
+    paintLevel();
+    nextProblem();
+  }
+  document.querySelectorAll('.lvlbtn').forEach(b=>{
+    b.onclick = ()=>setLevel(b.dataset.lv);
+  });
+
+  $('negLead').onclick = ()=>{
+    negLead = !negLead;
+    const b = $('negLead');
+    b.classList.toggle('on', negLead);
+    b.setAttribute('aria-pressed', negLead ? 'true' : 'false');
+    nextProblem();
+  };
+
+  $('newRandom').onclick = nextProblem;
+  $('restart').onclick = redo;
+  $('useCustom').onclick = ()=>{
+    const p = parseExpr($('cexp').value);
+    if(!p){ alert('Write something like 24 + 36, 40g^5 + 50g^6, or 225a^3z + 375a^8z^2.'); return; }
+    if(p.err){ alert(p.err); return; }
+    /* follow the level the typed problem belongs to */
+    level = p.letters.length === 0 ? 'easy' : p.letters.length === 1 ? 'medium' : 'hard';
+    paintLevel();
+    start(p);
+  };
+  $('cexp').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); $('useCustom').click(); }});
+
+  paintLevel();
+  start({ letters:['g'],
+          terms:[{c:40,ex:{g:5},sign:1},{c:50,ex:{g:6},sign:1}],
+          g:10, ge:{g:5} });
+})();
+</script>
+</body>
+</html>
