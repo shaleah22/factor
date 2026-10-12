@@ -1,9 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Factoring</title>
+<style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f4f6f9;
+        color: #1a202c;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+    .off { display: none !important; }
+
+    /* ---------- the bar over the drill ---------- */
+    .problem-header {
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+        gap: 8px 16px; flex: none;
+        padding: 8px clamp(12px, 2vw, 24px);
+        background: #ffffff; border-bottom: 2px solid #e2e8f0;
+        font-weight: 800; font-size: clamp(0.95rem, 1.4vw, 1.2rem); color: #2b6cb0;
+    }
+    .head-left { display: inline-flex; align-items: baseline; gap: 12px; }
+
+    button {
+        font-family: inherit; font-weight: 800; border-radius: 10px;
+        cursor: pointer; border: none; transition: background 0.2s;
+    }
+    button:focus-visible { outline: 3px solid #1a365d; outline-offset: 3px; }
+    .check-btn {
+        color: white; background-color: #2b6cb0;
+        padding: 12px 30px; font-size: 1.1rem;
+    }
+    .check-btn:hover { background-color: #2c5282; }
+
+    /* ---------- the drill ---------- */
+    .frames { position: relative; flex: 1; min-height: 0; }
+    .frames iframe {
+        position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block;
+    }
+    .frames iframe.hide { visibility: hidden; pointer-events: none; }
+    .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #a0aec0; }
+
+    /* ---------- turning it in ---------- */
+    /* always on screen, so a student who runs out of time can send what they have */
+    .pv-title { font-weight: 800; white-space: nowrap; }
+    .pv-title span { font-weight: 600; color: #718096; }
+    .pv-types, .pv-nav { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+    .pv-type, .pv-btn { font: inherit; font-size: 0.8em; font-weight: 700; border-radius: 8px; padding: 6px 12px; cursor: pointer;
+        border: 2px solid #e2e8f0; background: #fff; color: #4a5568; }
+    .pv-type[aria-pressed="true"] { background: #1a202c; border-color: #1a202c; color: #fff; }
+    .pv-btn.pv-main { background: #1a202c; border-color: #1a202c; color: #fff; }
+    .pv-btn:disabled { opacity: .4; cursor: default; }
+    .turnin-link {
+        background: #ffffff; color: #2b6cb0;
+        border: 2px solid #bee3f8;
+        font-size: 0.75em; padding: 3px 12px;
+    }
+    .turnin-link:hover { border-color: #90cdf4; background: #ebf8ff; }
+    .turnin {
+        position: fixed; inset: 0; z-index: 100; overflow: auto;
+        background: #f4f6f9;
+        -webkit-user-select: text; user-select: text;
+    }
+    .ti-inner {
+        max-width: 640px; margin: clamp(12px, 4vh, 40px) auto; padding: 28px clamp(18px, 4vw, 36px) 32px;
+        background: #ffffff; border-radius: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+    }
+    .ti-inner h2 { color: #1a365d; font-size: 1.6rem; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
+    .ti-inner h3 { color: #1a365d; font-size: 1.05rem; font-weight: 800; margin: 26px 0 10px; }
+    .ti-sub { color: #718096; font-weight: 600; line-height: 1.55; margin: 0 0 20px; }
+    .ti-recap { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+    .ti-recap > div {
+        border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;
+        color: #718096; font-size: 0.85rem;
+    }
+    .ti-recap b { display: block; color: #1a202c; font-size: 1.6rem; font-weight: 800; }
+    .ti-log {
+        max-height: 320px; overflow: auto; margin-top: 16px; padding: 6px 0;
+        border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;
+    }
+    .ti-empty { color: #a0aec0; margin-top: 14px; }
+    .ti-row { display: flex; gap: 10px; align-items: baseline; padding: 5px 2px; font-size: 1.02rem; }
+    .ti-n { color: #a0aec0; min-width: 28px; text-align: right; font-size: 0.85rem; }
+    .ti-s { color: #a0aec0; font-size: 0.78rem; min-width: 74px; }
+    .ti-q { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .ti-k { font-size: 0.8rem; white-space: nowrap; color: #38a169; }
+    .ti-k.retry { color: #dd6b20; }
+    #gform { margin-top: 4px; }
+    .ti-warn {
+        background: #fefcbf; color: #744210; border-radius: 10px; padding: 11px 14px;
+        margin-bottom: 18px; line-height: 1.55; font-size: 0.92rem;
+    }
+    .ti-field { margin-bottom: 14px; }
+    .ti-field label { display: block; margin-bottom: 6px; color: #2d3748; }
+    .ti-field label em { font-style: normal; color: #a0aec0; font-weight: 600; font-size: 0.88rem; }
+    .ti-num {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 22px; height: 22px; margin-right: 8px; border-radius: 50%;
+        background: #2b6cb0; color: #ffffff; font-size: 0.8rem;
+    }
+    .ti-field input {
+        font-family: inherit; font-size: 1.05rem; font-weight: 700; color: #1a202c; width: 100%;
+        border: 2px solid #cbd5e0; border-radius: 10px; padding: 9px 12px; background: #ffffff;
+    }
+    .ti-field input:focus { outline: none; border-color: #3182ce; }
+    .ti-check { border: 2px solid #e2e8f0; border-radius: 12px; padding: 11px 14px; margin: 4px 0 16px; background: #f7fafc; }
+    .ti-check .head { color: #718096; font-size: 0.88rem; margin-bottom: 8px; }
+    .ti-check .row { display: flex; gap: 12px; align-items: baseline; margin-bottom: 4px; }
+    .ti-check .row:last-child { margin-bottom: 0; padding-top: 6px; border-top: 2px solid #e2e8f0; }
+    .ti-check .t { color: #a0aec0; min-width: 88px; font-size: 0.85rem; }
+    .ti-check .v { color: #1a202c; }
+    .ti-check .v.empty { color: #cbd5e0; }
+    .ti-feedback { margin-top: 14px; min-height: 1.2em; }
+    .ti-feedback .ok { color: #2f855a; }
+    .ti-feedback .note { color: #718096; }
+    .ti-after {
+        margin-top: 20px; padding-top: 16px; border-top: 2px solid #e2e8f0;
+        display: flex; gap: 12px; align-items: center; flex-wrap: wrap; color: #718096;
+    }
+    .ti-ghost { background: #edf2f7; color: #2d3748; padding: 8px 16px; font-size: 0.95rem; }
+    .ti-ghost:hover { background: #e2e8f0; }
+
+    @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+    }
+</style>
+</head>
+<body>
+
+<div class="problem-header">
+    <span class="head-left">
+        <span id="problem-title">Problem 1 of 20</span>
+        <button class="turnin-link" id="turnin-link" type="button">Turn in</button>
+    </span>
+</div>
+
+<div class="frames">
+    <div class="loading" id="loading">Loading&hellip;</div>
+    <iframe id="f-fac" class="hide" title="Factoring problem"></iframe>
+</div>
+
+<!-- ---------- the turn-in page: after problem 20, or any time from the Turn in button ---------- -->
+<div class="turnin off" id="turnin" role="dialog" aria-labelledby="ti-title">
+    <div class="ti-inner">
+        <h2 id="ti-title">All 20 done</h2>
+        <p class="ti-sub" id="ti-sub">Enter your period and name to turn in your work.</p>
+
+        <iframe name="hidden_iframe" id="hidden_iframe" style="display:none"
+                onload="if(window.onHiddenFrameLoad)onHiddenFrameLoad()"></iframe>
+
+        <form action="https://docs.google.com/forms/d/e/1FAIpQLSe4_Gnrq1zyrttA3lSgrVBtMkaVaoMim31ByzoH-orxmfDB2A/formResponse"
+              method="POST" target="hidden_iframe" id="gform">
+            <div class="ti-warn">
+                Read the box labels before you type. Your <b>LAST name</b> goes in the
+                <b>Last name</b> box and your <b>FIRST name</b> goes in the <b>First name</b> box.
+                Swapped names cannot be matched to the roster and count as missing.
+            </div>
+            <div class="ti-field">
+                <label for="studentPeriod"><span class="ti-num">1</span>Period</label>
+                <input type="number" id="studentPeriod" placeholder="e.g. 3" min="1" max="10" required>
+            </div>
+            <div class="ti-field">
+                <label for="lastName"><span class="ti-num">2</span>LAST name
+                    <em>&mdash; your family name, the one the roster is alphabetized by</em></label>
+                <input type="text" id="lastName" placeholder="Rodriguez" autocomplete="family-name" required>
+            </div>
+            <div class="ti-field">
+                <label for="firstName"><span class="ti-num">3</span>FIRST name
+                    <em>&mdash; the name your teacher calls you by</em></label>
+                <input type="text" id="firstName" placeholder="Maria" autocomplete="given-name" required>
+            </div>
+            <div class="ti-check" id="nameCheck"></div>
+            <input type="hidden" id="studentName" name="entry.1899284808" value="">
+            <input type="hidden" id="formScore" name="entry.1974610095" value="">
+            <button type="submit" class="check-btn" id="ti-submit">Submit Results</button>
+        </form>
+
+        <div class="ti-feedback" id="ti-feedback"></div>
+        <div class="ti-after">
+            <span id="ti-after-lab">Want more practice?</span>
+            <button class="ti-ghost" type="button" id="ti-back">Keep practicing</button>
+        </div>
+
+        <!-- the work goes under the form, so the name boxes are the first thing on the page -->
+        <h3>Your work</h3>
+        <div class="ti-recap" id="ti-recap"></div>
+        <div id="ti-log"></div>
+    </div>
+</div>
+
+<!-- the factoring drill, run whole in its own frame so it keeps its own look -->
+<script type="text/plain" id="src-fac"><!DOCTYPE html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Factoring out the GCF — drill</title>
+<title>Factoring out the GCF — practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,71 +224,159 @@
     --v0:#D8452F;       /* first letter  */
     --v1:#0F7A5A;       /* second letter */
     --v2:#7A4FBF;       /* third letter  */
-    --cell:90px;
-    --gap:26px;
-    --lab:80px;
-    --row:56px;
-    --big:30px;
+    --top:#1E9A55;      /* taking out: the term's power (top of the fraction) */
+    --bot:#D6357F;      /* taking out: the gcf's power (bottom of the fraction) */
+    --cell:8.5rem;
+    --gap:1.625rem;
+    --lab:7rem;
+    --row:5.25rem;
+    --big:3.25rem;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
+  /* everything is sized in rem, so this one line scales the whole drill up on bigger screens */
+  html{font-size:clamp(16px, 1.1vw + 3px, 25px)}
   body{
     background:var(--bg);color:var(--ink);
     font-family:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,sans-serif;
-    display:flex;justify-content:center;padding:28px 14px 60px;
+    display:flex;justify-content:center;padding:1rem 0.75rem 3rem;
     -webkit-font-smoothing:antialiased;
   }
-  .pad{width:100%;max-width:700px}
+  .pad{width:100%;max-width:120rem}
 
-  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 2px 16px}
-  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:5px}
-  h1{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
-  .score{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:right;line-height:1.6;white-space:nowrap;font-weight:600}
-  .score b{display:block;color:var(--ink);font-size:21px;letter-spacing:0}
+  .settings{margin-top:2rem;padding-top:1.5rem;border-top:1px solid #DEDED8}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin:0 0.125rem 1rem}
+  .eyebrow{font-size:0.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:0.3125rem}
+  h1{font-size:1.4375rem;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1}
+  .score{font-size:0.6875rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:right;line-height:1.6;white-space:nowrap;font-weight:600}
+  .score b{display:block;color:var(--ink);font-size:1.3125rem;letter-spacing:0}
 
   /* ---------- level picker ---------- */
-  .levels{display:flex;gap:5px;background:#E3E2DD;padding:4px;border-radius:12px;margin:0 0 14px}
+  .levels{display:flex;gap:0.3125rem;background:#E3E2DD;padding:0.25rem;border-radius:0.75rem;margin:0 0 0.875rem}
   .lvlbtn{flex:1;border:none;background:transparent;color:var(--ink-soft);font-family:inherit;
-    font-size:13.5px;font-weight:600;padding:9px 6px;border-radius:9px;line-height:1.2;text-align:center;letter-spacing:-.01em}
-  .lvlbtn em{display:block;font-style:normal;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
-    font-weight:600;opacity:.7;margin-top:3px}
+    font-size:0.8438rem;font-weight:600;padding:0.5625rem 0.375rem;border-radius:0.5625rem;line-height:1.2;text-align:center;letter-spacing:-.01em}
+  .lvlbtn em{display:block;font-style:normal;font-size:0.5938rem;letter-spacing:.11em;text-transform:uppercase;
+    font-weight:600;opacity:.7;margin-top:0.1875rem}
   .lvlbtn:hover{color:var(--ink)}
-  .lvlbtn.on{background:var(--card);color:var(--ink);box-shadow:0 2px 5px -2px rgba(22,35,61,.3)}
+  .lvlbtn.on{background:var(--card);color:var(--ink);box-shadow:0 0.125rem 0.3125rem -2px rgba(22,35,61,.3)}
   .lvlbtn.on em{color:var(--accent);opacity:1}
 
-  .opts{display:flex;justify-content:flex-end;margin:-6px 2px 12px}
-  .chip{display:inline-flex;align-items:center;gap:8px;background:transparent;border:none;
-    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);padding:5px 4px}
-  .chip .tick{width:16px;height:16px;border-radius:5px;border:2px solid #C9C9C2;background:#fff;
+  .opts{display:flex;justify-content:flex-end;margin:-6px 0.125rem 0.75rem}
+  .chip{display:inline-flex;align-items:center;gap:0.5rem;background:transparent;border:none;
+    font-family:inherit;font-size:0.7812rem;font-weight:600;color:var(--ink-soft);padding:0.3125rem 0.25rem}
+  .chip .tick{width:1rem;height:1rem;border-radius:0.3125rem;border:0.125rem solid #C9C9C2;background:#fff;
     display:inline-block;position:relative;transition:background .15s,border-color .15s}
   .chip.on{color:var(--ink)}
   .chip.on .tick{background:var(--accent);border-color:var(--accent)}
-  .chip.on .tick::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
-    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+  .chip.on .tick::after{content:"";position:absolute;left:0.25rem;top:1px;width:0.25rem;height:0.5rem;
+    border:solid #fff;border-width:0 0.125rem 0.125rem 0;transform:rotate(42deg)}
   .chip:hover{color:var(--ink)}
 
-  .card{background:var(--card);border-radius:12px;padding:22px 26px 22px;box-shadow:0 12px 30px -18px rgba(22,35,61,.35),0 1px 3px rgba(22,35,61,.06)}
+  .card{background:var(--card);border-radius:1rem;padding:1.5rem 1.5rem 1.75rem;box-shadow:0 0.75rem 1.875rem -18px rgba(22,35,61,.35),0 1px 0.1875rem rgba(22,35,61,.06)}
 
-  .slab{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:0 0 14px}
+  .slab{font-size:0.75rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:0 0 0.875rem}
 
   /* ---------- the division box ---------- */
-  .boxwrap{overflow-x:auto;padding-bottom:4px;margin-bottom:6px}
+  .boxwrap{overflow-x:auto;padding-bottom:0.25rem;margin-bottom:0.375rem}
+  .stage{position:relative;width:max-content;min-width:100%}
+  /* the written-out powers float above the problem, each row wired to its term by an arrow */
+  .above:empty{display:none}
+  .above{padding-top:0.25rem}
+  /* while taking the letter out of a term, its fraction sits to the right of the problem */
+  .mrow{display:flex;align-items:flex-start;flex-wrap:wrap;column-gap:4.5rem;row-gap:1.5rem}
+  /* not enough room beside the fraction: the written-out version drops underneath it */
+  .side.stack{flex-direction:column;align-items:flex-start;gap:0.75rem}
+  .side.stack .feq{display:none}
+  .side:empty{display:none}
+  /* who is who while taking a letter out: green = this term's power, pink = the gcf's power */
+  .vp.top,.prompt .n.top,.side .top,.cancel .cg.top{color:var(--top)}
+  .vp.bot,.prompt .n.bot,.side .bot,.cancel .cg.bot{color:var(--bot)}
+  .vp.idle{color:var(--v0)}
+  .side .frac .bot{border-top-color:var(--ink-soft)}
+  .side .cancel .cbar{border-top-color:var(--ink-soft)}
+  .vp.faint{opacity:.3}
+  .mrow.under{flex-direction:column}
+  .mrow.fin{column-gap:2.5rem}
+  .side .done{white-space:nowrap;padding:1.25rem 1.5rem;align-self:flex-start}
+  .side .done .verify{font-size:1.25rem;line-height:1.75}
+  .side .done h2{font-size:0.8125rem}
+  .mrow.under .side .done{white-space:normal;max-width:100%;overflow-x:auto}
+  .mrow.under .side{max-width:100%}
+  /* underneath the problem there is room across, so the caption sits beside the model instead of below it */
+  @media (min-width:601px){
+    .mrow.under .side .done{display:grid;grid-template-columns:max-content minmax(14rem,28rem);column-gap:2rem;align-items:center}
+    .mrow.under .side .done h2{grid-column:1 / -1}
+    .mrow.under .side .done .acap{width:auto;min-width:0;margin:0}
+  }
+  /* ---------- area model ---------- */
+  .amodel{display:grid;font-size:max(1.2rem, calc(var(--big) * .46));font-weight:600;margin:0.5rem 0 0.25rem}
+  .amodel .atop{display:flex;align-items:flex-end;justify-content:center;padding:0 0.75rem 0.4rem;color:var(--ink);
+    animation:fall .35s ease-out both}
+  .amodel .aside{display:flex;align-items:center;justify-content:flex-end;padding:0 0.6rem 0 0;animation:fall .35s ease-out both}
+  .amodel .abox{display:flex;align-items:center;justify-content:center;gap:0.2rem;min-height:3.4em;padding:0.5rem 0.9rem;
+    background:#fff;border:2.5px solid var(--ink);border-left:none;animation:fillin .45s ease-out both}
+  .amodel .abox.first{border-left:2.5px solid var(--ink)}
+  .amodel .abox.dotted{flex-direction:column;justify-content:flex-start;gap:0.5rem;padding:0.7rem 0.8rem 0.55rem}
+  .amodel .aterm{display:flex;align-items:center;gap:0.2rem;animation:fall .3s ease-out both}
+  .amodel .abox.split{flex-direction:column;gap:0.45rem;padding:0.7rem 0.9rem}
+  .amodel .apart{display:flex;align-items:center;gap:0.3rem;font-size:.72em;white-space:nowrap;animation:fall .3s ease-out both}
+  .amodel .ax{color:var(--ink-soft)}
+  .gchip{display:inline-block;color:var(--bot);background:#FBE3EE;box-shadow:0 0 0 2px #F2B8D2 inset;border-radius:0.35em;padding:0.08em 0.4em;font-weight:700;white-space:nowrap}
+  .gchip.sm{font-size:1em;padding:0 0.3em}
+  .lchip{display:inline-block;color:var(--top);font-weight:700;white-space:nowrap}
+  .amodel .aside .gchip{font-size:.9em}
+  .ltiles{display:flex;flex-wrap:wrap;justify-content:center;gap:0.3rem 0.35rem;max-width:7.5em}
+  .lgrp{display:inline-flex;flex-wrap:wrap;justify-content:center;gap:0.12rem}
+  .ltiles b{display:inline-flex;align-items:center;justify-content:center;min-width:1.35em;height:1.5em;border-radius:0.3em;
+    font-size:.7em;font-weight:700;animation:dotin .22s ease-out both}
+  .ltiles b.bot{color:var(--bot);background:#FBE3EE;box-shadow:0 0 0 1.5px #F2B8D2 inset}
+  .ltiles b.top{color:var(--top);background:#DFF3E7;box-shadow:0 0 0 1.5px #A9DDBE inset}
+  .acap .bot{color:var(--bot);font-weight:700}
+  .acap .top{color:var(--top);font-weight:700}
+  .acap .amult{display:block;white-space:nowrap;font-weight:600;color:var(--good)}
+  .dots{display:grid;gap:calc(var(--dot) * .3);justify-content:center}
+  .dots i{display:block;width:var(--dot);height:var(--dot);border-radius:50%;animation:dotin .22s ease-out both}
+  .dots i.pos{background:var(--num)}
+  .dots i.neg{border:2px solid var(--bad);background:transparent}
+  @keyframes dotin{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  .amodel .abox .grp,.amodel .abox .vp{padding:0}
+  .amodel .abox .sign{font-size:.85em}
+  .acap{margin:0.6rem 0 0;font-size:max(0.875rem, calc(var(--big) * .29));color:#3C6A5B;font-weight:500;white-space:normal;width:0;min-width:100%;line-height:1.4}
+  @keyframes fillin{from{background:var(--good-bg);opacity:0;transform:scale(.92)}to{background:#fff;opacity:1;transform:none}}
+  @media (max-width:600px){ .amodel{font-size:1.0625rem} .amodel .abox{padding:0.4rem 0.5rem} .ltiles{max-width:5.5em} .side .done{padding:1rem} }
+  @media (max-width:600px){ .side .done .verify{font-size:1rem} }
+  .side{display:flex;align-items:center;gap:0.5rem}
+  .side .frac{font-size:calc(var(--big) * .85);margin:0}
+  .side .frac .bot{border-top-width:0.1875rem}
+  .side .feq{font-size:calc(var(--big) * .7);margin:0 0.25rem}
+  .side .cancel{margin:0;font-size:calc(var(--big) * .62)}
+  .side .cancel .cg{width:.8em}
+  .side .cancel .dot{width:.45em}
+  @media (max-width:600px){
+    .mrow{column-gap:1.75rem}
+    .side{flex-direction:column;align-items:flex-start;gap:0.75rem}
+    .side .feq{display:none}
+    .side .cancel{font-size:1rem}
+  }
+  .links{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+  .links path:not(.tip){fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+  .links .tip{stroke:none;opacity:.75}
   .box{display:grid;justify-content:start;align-items:end;font-size:var(--big);font-weight:500;white-space:nowrap}
-  .gcfcell{display:flex;align-items:center;justify-content:flex-end;gap:1px;padding:0 11px 9px 0;min-height:var(--row)}
-  .tcell{display:flex;align-items:center;justify-content:center;gap:6px;
-    border-bottom:3px solid var(--line);padding:6px 10px 9px;min-height:var(--row)}
-  .tcell.first{border-left:3px solid var(--line)}
-  .tcell.last{padding-right:16px}
-  .qcell{display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 10px 0;min-height:52px}
+  .gcfcell{display:flex;align-items:center;justify-content:flex-end;gap:1px;padding:0 0.6875rem 0.5625rem 0;min-height:var(--row)}
+  .tcell{display:flex;align-items:center;justify-content:center;gap:0.375rem;
+    border-bottom:0.1875rem solid var(--line);padding:0.375rem 0.625rem 0.5625rem;min-height:var(--row)}
+  .tcell.first{border-left:0.1875rem solid var(--line)}
+  .tcell.last{padding-right:1rem}
+  .qcell{display:flex;align-items:center;justify-content:center;gap:0.375rem;padding:0.8125rem 0.625rem 0;min-height:3.25rem}
   .qcell.empty{color:var(--ink-soft)}
 
-  .c{color:var(--num);padding:2px 3px;border-radius:6px}
-  .grp{display:inline-flex;align-items:center;gap:1px;padding:2px 3px;border-radius:6px}
+  .c{color:var(--num);padding:0.125rem 0.1875rem;border-radius:0.375rem}
+  .grp{display:inline-flex;align-items:center;gap:1px;padding:0.125rem 0.1875rem;border-radius:0.375rem}
   .grp .c{padding:0}
   .sign.neg{color:var(--num);font-size:.86em;padding:0 1px 0 0}
   .sign.pos{color:var(--num);font-size:.86em;padding:0 1px 0 0}
-  .vp{padding:2px 3px;border-radius:6px}
-  .one{font-weight:600;padding:2px 1px}
+  .vp{padding:0.125rem 0.1875rem;border-radius:0.375rem}
+  .one{font-weight:600;padding:0.125rem 1px}
   .v0,.one.v0{color:var(--v0)}
   .v1,.one.v1{color:var(--v1)}
   .v2,.one.v2{color:var(--v2)}
@@ -104,97 +390,166 @@
   @keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
 
   /* ---------- bringing it down ---------- */
-  .drop{display:flex;justify-content:center;padding-top:10px;animation:fall .32s ease-out both}
-  .arw{position:relative;display:block;width:2.5px;height:38px;background:var(--ink)}
+  .drop{display:flex;justify-content:center;padding-top:0.625rem;animation:fall .32s ease-out both}
+  .arw{position:relative;display:block;width:0.1875rem;height:3.5rem;background:var(--ink)}
   .arw::after{content:"";position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);
-    border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid var(--ink)}
+    border-left:0.4375rem solid transparent;border-right:0.4375rem solid transparent;border-top:0.625rem solid var(--ink)}
   @keyframes fall{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
-  .answer{font-size:var(--big);font-weight:600;margin:16px 0 2px;white-space:nowrap;overflow-x:auto;animation:fall .4s ease-out both}
-  .answer .paren{font-size:1.3em;font-weight:400;color:var(--ink-soft)}
+  /* the gcf-column arrow sits over an invisible copy of the gcf, so it centres on it */
+  .drop.gdrop{justify-content:flex-end;padding-right:0.6875rem}
+  .anchor{display:inline-flex;flex-direction:column;align-items:center}
+  .ghostw{display:flex;gap:1px;height:0;overflow:hidden;visibility:hidden;font-weight:600}
+  /* the answer, one piece under each column */
+  .acell{position:relative;display:flex;align-items:center;justify-content:center;gap:1px;
+    padding:0.75rem 0.625rem 0.25rem;font-weight:600;animation:fall .4s ease-out both}
+  .acell.agcf{justify-content:flex-end;padding-right:0.6875rem}
+  .acell .aterm{position:relative;color:var(--ink)}
+  /* signs sit on the column boundary; brackets hug the first and last pieces — neither shifts the centring */
+  .acell .join,.acell .paren{position:absolute;top:50%;color:var(--ink-soft);font-weight:400;line-height:1}
+  .acell .join{left:0;margin-top:0.25rem;transform:translate(-50%,-50%);font-size:.8em}
+  .acell .paren{font-size:1.3em;transform:translateY(-54%)}
+  .acell .paren.open{right:100%;margin-right:0.1875rem}
+  .acell .paren.close{left:100%;margin-left:0.1875rem}
+
+  /* ---------- breakdown rungs, inside the box ---------- */
+  .lfcell{display:flex;align-items:center;justify-content:flex-end;gap:0.375rem;padding:0 0.6875rem 0 0;min-height:var(--row);color:var(--num)}
+  .lfcell .times{color:var(--ink-soft);font-size:.8em}
+  .rcell{display:flex;align-items:center;justify-content:center;padding:0.375rem 0.625rem 0.5625rem;min-height:var(--row);
+    color:var(--ink)}
+  .rcell.br{border-bottom:3px solid var(--line)}
+  .rcell.br.first{border-left:3px solid var(--line)}
 
   /* ---------- ladder ---------- */
-  .work{margin-top:20px;padding-top:15px;border-top:1px dashed #DEDED8}
-  .wlab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin:0 0 10px 2px}
+  .work{margin-top:1.25rem;padding-top:0.9375rem;border-top:1px dashed #DEDED8}
+  .wlab{font-size:0.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin:0 0 0.625rem 0.125rem}
   .lvl{display:flex;align-items:stretch}
   .fcell{width:var(--lab);height:var(--row);display:flex;align-items:center;justify-content:flex-end;
-    padding-right:14px;font-size:27px;font-weight:500;color:var(--num)}
-  .fcell.br{border-right:3px solid var(--line)}
+    padding-right:1rem;font-size:2.75rem;font-weight:500;color:var(--num)}
+  .fcell.br{border-right:0.1875rem solid var(--line)}
   .terms{display:flex;align-items:stretch}
-  .terms.closed{border-bottom:3px solid var(--line)}
-  .ncell{width:var(--cell);height:var(--row);display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:500}
+  .terms.closed{border-bottom:0.1875rem solid var(--line)}
+  .ncell{width:var(--cell);height:var(--row);display:flex;align-items:center;justify-content:center;font-size:2.75rem;font-weight:500}
   .slot{width:var(--cell);height:var(--row);display:flex;align-items:center;justify-content:center}
+
+  /* ---------- stretched-out powers ---------- */
+  .stretchwrap{overflow-x:auto;padding-bottom:0.125rem}
+  .stretch{display:grid;justify-content:start;align-items:center;gap:0.4375rem 0.3125rem}
+  .slbl{font-size:1.75rem;font-weight:600;text-align:right;padding-right:0.5rem;white-space:nowrap}
+  .slbl .eq{color:var(--ink-soft);font-weight:400;padding-left:0.5rem}
+  .tile{width:2.5rem;height:2.875rem;border-radius:0.5625rem;display:flex;align-items:center;justify-content:center;
+    font-size:1.6875rem;font-weight:600;background:#fff;border:1.5px solid #DEDED8;
+    transition:background .25s,border-color .25s}
+  .tile.gone{border-style:dashed;border-color:#E3E3DE;background:transparent}
+  .stretch.lit .tile.shared{background:#FFF3C4;border-color:var(--wash-edge);transition-delay:calc(var(--i) * 45ms)}
+  @media (max-width:600px){ .tile{width:1.6875rem;height:2rem;font-size:1.125rem} .slbl{font-size:1.1875rem} }
+  @media (max-width:440px){ .stretch{gap:0.3125rem 0.1875rem} .tile{width:1.375rem;height:1.75rem;font-size:1rem;border-radius:0.375rem} .slbl{font-size:1rem;padding-right:0.25rem} .slbl .eq{padding-left:0.25rem} }
 
   /* ---------- inputs ---------- */
   input.cell{
-    width:64px;height:44px;text-align:center;font-family:inherit;font-size:26px;font-weight:500;color:var(--ink);
-    background:#fff;border:2px dashed var(--ask-edge);border-radius:9px;padding:0;outline:none;caret-color:var(--accent);
+    width:6rem;height:4.25rem;text-align:center;font-family:inherit;font-size:2.625rem;font-weight:500;color:var(--ink);
+    background:#fff;border:0.125rem dashed var(--ask-edge);border-radius:0.5625rem;padding:0;outline:none;caret-color:var(--accent);
   }
-  input.cell.exp{width:44px;height:34px;font-size:19px;align-self:flex-start;margin-top:-4px}
-  input.cell.mono{width:68px}
-  input.cell:focus{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 4px rgba(216,69,47,.12)}
+  input.cell.exp{width:4rem;height:3.125rem;font-size:1.875rem;align-self:flex-start;margin-top:-4px}
+  input.cell.mono{width:6.5rem}
+  body.pv .answerbar{display:none}
+  /* the letters box: its text is drawn by a mirror on top, so exponents sit small and high */
+  .mfield{position:relative;display:inline-block}
+  input.cell.mirrored{color:transparent;caret-color:transparent}
+  input.cell.mirrored::selection{background:transparent;color:transparent}
+  .mmir{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;white-space:pre;overflow:hidden;font-size:2.625rem;font-weight:500;color:var(--ink);line-height:1}
+  .mmir .mtx{display:inline-block;line-height:1.2}
+  .mmir sup{font-size:.5em;line-height:0;vertical-align:.85em}
+  .mmir .sel{background:rgba(35,88,216,.22);border-radius:2px}
+  .mmir .xslot{display:inline-block;width:.4em;height:.48em;margin-left:.04em;border:1.5px dashed var(--ink-soft);border-radius:.08em;vertical-align:.45em}
+  .mmir .cur{display:inline-block;width:0;height:1em;border-left:2px solid var(--accent);margin-right:-2px;vertical-align:-.12em;animation:mblink 1s steps(1) infinite}
+  .mmir .cur.up{height:.5em;vertical-align:.45em}
+  .mmir .xslot + .cur.up{margin-left:-.26em}
+  @keyframes mblink{50%{opacity:0}}
+  input.cell:focus{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 0.25rem rgba(216,69,47,.12)}
   input.cell.wrong{border-color:var(--bad);border-style:solid;animation:shake .3s}
-  @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(0.3125rem)}}
 
   /* ---------- coach ---------- */
-  .coach{border-top:1px solid #E6E6E1;margin-top:18px;padding-top:18px}
-  .prompt{font-size:19px;font-weight:500;line-height:1.35;margin:0 0 14px;letter-spacing:-.01em}
+  .coach{border-top:1px solid #E6E6E1;margin-top:1.125rem;padding-top:1.125rem}
+  .prompt{font-size:1.75rem;font-weight:500;line-height:1.35;margin:0 0 0.875rem;letter-spacing:-.01em}
   .prompt .n{color:var(--accent);font-weight:600}
   .prompt .n.v0{color:var(--v0)}
   .prompt .n.v1{color:var(--v1)}
   .prompt .n.v2{color:var(--v2)}
-  .answerbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .frac{display:inline-flex;flex-direction:column;align-items:center;font-size:23px;font-weight:600;line-height:1.15;
-    margin:0 4px 14px 2px}
-  .frac .bot{border-top:2.5px solid currentColor;padding-top:2px;margin-top:2px}
-  .frac span{padding:0 8px}
+  .answerbar{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap}
+  .frac{display:inline-flex;flex-direction:column;align-items:center;font-size:1.875rem;font-weight:600;line-height:1.15;
+    margin:0 0.25rem 0.875rem 0.125rem}
+  .frac .bot{border-top:0.1562rem solid currentColor;padding-top:0.125rem;margin-top:0.125rem}
+  .frac span{padding:0 0.5rem}
+  .feq{font-size:1.875rem;color:var(--ink-soft);margin:0 0.125rem 0.875rem}
 
-  button{font-family:inherit;cursor:pointer;border-radius:9px;transition:background .15s,color .15s,transform .08s}
+  /* ---------- the fraction written out long, with matching pairs struck off ---------- */
+  .cancel{display:inline-grid;font-size:1.9375rem;font-weight:600;line-height:1.1;margin:0 0.375rem 0.875rem 0;max-width:100%;overflow-x:auto}
+  .cancel .crow{display:flex;align-items:center;padding:0 0.25rem}
+  .cancel .cbar{border-top:0.1562rem solid currentColor;margin:0.3125rem 0}
+  .cancel .dot{width:1.0625rem;text-align:center;color:var(--ink-soft);font-weight:400}
+  .cancel .cg{position:relative;width:1.4375rem;text-align:center}
+  .cancel .cg.x > i{font-style:normal;display:inline-block;animation:dim .3s ease-out both;animation-delay:calc(.35s + var(--i) * .18s + .15s)}
+  .cancel .cg.x::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:0.1562rem;border-radius:0.125rem;
+    background:var(--ink);transform:rotate(-58deg) scaleX(1);
+    animation:strike .22s ease-out both;animation-delay:calc(.35s + var(--i) * .18s)}
+  .cancel .cg.keep{text-shadow:0 0 0 currentColor}
+  @keyframes strike{from{transform:rotate(-58deg) scaleX(0)}to{transform:rotate(-58deg) scaleX(1)}}
+  @keyframes dim{from{opacity:1}to{opacity:.4}}
+  @media (max-width:600px){ .cancel{font-size:1.25rem} .cancel .cg{width:0.9375rem} .cancel .dot{width:0.6875rem} }
+
+  button{font-family:inherit;cursor:pointer;border-radius:0.5625rem;transition:background .15s,color .15s,transform .08s}
   button:active{transform:translateY(1px)}
-  .btn{height:42px;padding:0 20px;font-size:14px;font-weight:600;background:var(--ink);color:#fff;border:none}
+  .btn{height:2.875rem;padding:0 1.375rem;font-size:0.9375rem;font-weight:600;background:var(--ink);color:#fff;border:none}
   .btn:hover{background:#2A3B5F}
   .btn.ghost{background:transparent;color:var(--ink-soft);border:1.5px solid #DBDBD5}
   .btn.ghost:hover{background:#F4F4F1;color:var(--ink)}
-  .btn.small{height:34px;padding:0 13px;font-size:12.5px}
-  button:focus-visible,input:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+  .btn.small{height:2.375rem;padding:0 1rem;font-size:0.875rem}
+  button:focus-visible,input:focus-visible{outline:0.1562rem solid var(--accent);outline-offset:0.125rem}
 
-  .msg{min-height:21px;margin-top:14px;font-size:14.5px;font-weight:500;line-height:1.4}
+  .msg{min-height:1.5rem;margin-top:1rem;font-size:1.1875rem;font-weight:500;line-height:1.4}
   .msg.ok{color:var(--good)}
   .msg.err{color:var(--bad)}
   .msg.tip{color:var(--ink-soft)}
+  .msg .lead{color:var(--bad)}
 
-  .done{background:var(--good-bg);border-radius:10px;padding:16px 18px}
-  .done h2{margin:0 0 8px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--good);font-weight:700}
-  .done .verify{font-size:13.5px;color:#3C6A5B;font-weight:500;line-height:1.7}
+  .done{background:var(--good-bg);border-radius:0.625rem;padding:1rem 1.125rem}
+  .done h2{margin:0 0 0.5rem;font-size:0.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--good);font-weight:700}
+  .done .verify{font-size:1rem;color:#3C6A5B;font-weight:500;line-height:1.7}
 
-  .tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:18px 2px 0}
-  .tools input{width:210px;height:34px;text-align:center;font-family:inherit;font-size:15px;font-weight:600;color:var(--ink);border:1.5px solid #DBDBD5;border-radius:9px;background:#fff;outline:none}
-  .tools span{font-size:13px;color:var(--ink-soft)}
+  .tools{display:flex;gap:0.5625rem;align-items:center;flex-wrap:wrap;margin:1.125rem 0.125rem 0}
+  .tools input{width:13.125rem;height:2.125rem;text-align:center;font-family:inherit;font-size:0.9375rem;font-weight:600;color:var(--ink);border:1.5px solid #DBDBD5;border-radius:0.5625rem;background:#fff;outline:none}
+  .tools span{font-size:0.8125rem;color:var(--ink-soft)}
 
   @media (max-width:600px){
-    :root{--cell:74px;--lab:56px;--row:50px;--big:25px}
-    .card{padding:18px 16px}
-    .tcell{padding:5px 9px 8px;gap:5px}
-    .qcell{padding:11px 9px 0}
-    .gcfcell{padding-right:9px}
-    input.cell{width:54px;height:40px;font-size:22px}
-    input.cell.mono{width:66px}
-    input.cell.exp{width:38px}
-    .fcell{font-size:22px;padding-right:9px}
-    .ncell{font-size:22px}
-    .prompt{font-size:17px}
-    h1{font-size:20px}
+    :root{--cell:4.625rem;--lab:3.5rem;--row:3.125rem;--big:1.5625rem}
+    .card{padding:1.125rem 1rem}
+    .tcell{padding:0.3125rem 0.5625rem 0.5rem;gap:0.3125rem}
+    .qcell{padding:0.6875rem 0.5625rem 0}
+    .gcfcell,.lfcell,.drop.gdrop,.acell.agcf{padding-right:0.5625rem}
+    .rcell{padding:0.3125rem 0.5625rem 0.5rem}
+    input.cell{width:3.375rem;height:2.5rem;font-size:1.375rem}
+    input.cell.mono{width:4.125rem}
+    .mmir{font-size:1.375rem}
+    input.cell.exp{width:2.375rem}
+    .fcell{font-size:1.375rem;padding-right:0.5625rem}
+    .ncell{font-size:1.375rem}
+    .prompt{font-size:1.0625rem}
+    .msg{font-size:0.9375rem}
+    h1{font-size:1.25rem}
     .tools input{width:100%}
-    .arw{height:30px}
-    .lvlbtn{font-size:12.5px;padding:8px 2px}
-    .lvlbtn em{font-size:9px;letter-spacing:.05em}
+    .arw{height:1.875rem}
+    .lvlbtn{font-size:0.7812rem;padding:0.5rem 0.125rem}
+    .lvlbtn em{font-size:0.5625rem;letter-spacing:.05em}
   }
   @media (max-width:400px){
-    :root{--cell:58px;--lab:50px;--row:46px;--big:21px}
-    .tcell{padding:4px 6px 7px;gap:3px}
-    .qcell{padding:9px 6px 0}
-    input.cell{width:46px;height:36px;font-size:19px}
-    input.cell.mono{width:58px}
-    .ncell,.fcell{font-size:19px}
+    :root{--cell:3.625rem;--lab:3.125rem;--row:2.875rem;--big:1.3125rem}
+    .tcell{padding:0.25rem 0.375rem 0.4375rem;gap:0.1875rem}
+    .qcell{padding:0.5625rem 0.375rem 0}
+    input.cell{width:2.875rem;height:2.25rem;font-size:1.1875rem}
+    input.cell.mono{width:3.625rem}
+    .mmir{font-size:1.1875rem}
+    .ncell,.fcell{font-size:1.1875rem}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -202,40 +557,13 @@
 <body>
 <div class="pad">
 
-  <div class="head">
-    <div>
-      <span class="eyebrow">Common factor</span>
-      <h1>Factoring out the GCF</h1>
-    </div>
-    <div class="score">solved<b id="solved">0</b></div>
-  </div>
-
-  <div class="levels" role="group" aria-label="Difficulty level">
-    <button class="lvlbtn" data-lv="easy" type="button">Easy<em>numbers only</em></button>
-    <button class="lvlbtn on" data-lv="medium" type="button">Medium<em>one variable</em></button>
-    <button class="lvlbtn" data-lv="hard" type="button">Hard<em>2+ variables</em></button>
-  </div>
-
-  <div class="opts">
-    <button class="chip" id="negLead" type="button" aria-pressed="false">
-      <span class="tick"></span>Start with a negative
-    </button>
-  </div>
-
   <div class="card">
     <p class="slab">Factor</p>
-    <div class="boxwrap"><div class="box" id="box"></div></div>
+    <div class="boxwrap"><div class="stage" id="stage"><div class="above" id="above"></div><div class="mrow"><div class="box" id="box"></div><div class="side" id="side"></div></div><svg class="links" id="links" width="1" height="1" aria-hidden="true"></svg></div></div>
     <div id="after"></div>
     <div class="coach" id="coach"></div>
   </div>
 
-  <div class="tools">
-    <button class="btn small ghost" id="newRandom">New problem</button>
-    <button class="btn small ghost" id="restart">Start over</button>
-    <span>or set your own</span>
-    <input id="cexp" value="40g^5 + 50g^6" aria-label="your own expression">
-    <button class="btn small" id="useCustom">Use this</button>
-  </div>
 </div>
 
 <script>
@@ -277,7 +605,9 @@
     S.letters.forEach((L,li)=>{
       const e = t.ex[L] || 0;
       if(!e) return;
-      h += '<span class="vp v'+li+(opt.hlVar === L ? ' asking' : '')+'">'+power(L,e)+'</span>';
+      h += '<span class="vp v'+li+(opt.hlVar === L ? ' asking' + (opt.role ? ' ' + opt.role : '') : '')
+         + (opt.idle === L ? ' idle' : '')
+         + (opt.faint && opt.faint !== L ? ' faint' : '')+'">'+power(L,e)+'</span>';
     });
     return h;
   }
@@ -309,7 +639,7 @@
 
   function start(p){
     S = { letters:p.letters, terms:p.terms, g:p.g, ge:p.ge, gs:p.gs || 1,
-          phase:'num', qi:0, vi:0, gotG:false,
+          phase:'num', qi:0, vi:0, gotG:false, flub:false, redo:false,
           qc:p.terms.map(()=>undefined),
           qv:p.terms.map(()=>({})),
           gp:{}, lad:null, msg:'', kind:'', fresh:null };
@@ -324,6 +654,26 @@
   function randomProblem(lv){
     lv = lv || level;
     const pool = ['x','y','g','n','a','b','p','z','d','m'];
+    /* two plain shapes: a letter term and a plain number (21v - 35),
+       or two terms with the same letter and power (20b + 30b) */
+    if(lv === 'const' || lv === 'like'){
+      const L = pool[Math.floor(Math.random()*pool.length)];
+      let g, a, b;
+      for(;;){
+        g = 2 + Math.floor(Math.random()*11);             /* 2..12 */
+        a = 1 + Math.floor(Math.random()*8);
+        b = 1 + Math.floor(Math.random()*8);
+        if(a === b || gcd(a,b) !== 1) continue;
+        if(a*g > 150 || b*g > 150) continue;
+        break;
+      }
+      const e = (lv === 'like' && Math.random() < 0.25) ? 2 : 1;
+      const eb = lv === 'like' ? e : 0;
+      const terms = [{ c:a*g, ex:{[L]:e},  sign:1 },
+                     { c:b*g, ex:{[L]:eb}, sign:Math.random() < 0.5 ? -1 : 1 }];
+      if(negLead && Math.random() < 0.8) terms[0].sign = -1;
+      return { letters:[L], terms, g, ge:{[L]:eb}, gs:terms[0].sign };
+    }
     /* easy: no letters at all — hard: two or three of them */
     const nL = lv === 'easy' ? 0
              : lv === 'medium' ? 1
@@ -451,10 +801,12 @@
     S.letters.forEach((L,li)=>{
       const e = S.gp[L];
       if(e !== undefined){
-        if(e > 0) h += '<span class="vp v'+li+(S.fresh === 'p'+li ? ' fresh' : '')+'">'+power(L,e)+'</span>';
+        if(e > 0) h += '<span class="vp v'+li+(S.fresh === 'p'+li ? ' fresh' : '')
+                     + (S.phase === 'vq' ? (li === S.vi ? ' bot' : ' faint') : '')
+                     + '" data-gl="'+li+'">'+power(L,e)+'</span>';
       } else if(P === 'pow' && li === S.vi){
-        h += '<span class="stem v'+li+'">'+L+'</span>'
-           + '<input class="cell exp" id="ans" inputmode="numeric" autocomplete="off" aria-label="highest power of '+L+'">';
+        /* the student writes the letter and its power themselves, e.g. m2 shows as m² */
+        h += '<span class="mfield"><input class="cell mono mirrored" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="highest power of '+L+' every term shares, letter included"><span class="mmir" aria-hidden="true"></span></span>';
       }
     });
     return h;
@@ -469,11 +821,13 @@
     S.letters.forEach((L,li)=>{
       const e = S.qv[i][L];
       if(e !== undefined){
+        /* a term that never had this letter (the 35 in 21v - 35) gets nothing written, not (1) */
+        if(e === 0 && !(t.ex[L] || 0)) return;
         h += e === 0
           ? '<span class="one v'+li+(S.fresh === 'v'+li+'.'+i ? ' fresh' : '')+'">(1)</span>'
           : '<span class="vp v'+li+(S.fresh === 'v'+li+'.'+i ? ' fresh' : '')+'">'+power(L,e)+'</span>';
       } else if(P === 'vq' && li === S.vi && i === S.qi){
-        h += '<input class="cell mono" id="ans" autocomplete="off" aria-label="'+L+' left in term '+(i+1)+'">';
+        h += '<span class="mfield"><input class="cell mono mirrored" id="ans" autocomplete="off" aria-label="'+L+' left in term '+(i+1)+'"><span class="mmir" aria-hidden="true"></span></span>';
       }
     });
     return h;
@@ -481,46 +835,61 @@
 
   function render(){
     const P = S.phase, T = S.terms, n = T.length;
-    const hlNum  = (P === 'num' || P === 'lfac' || P === 'ldiv' || P === 'lmul');
+    const hlNum  = (P === 'num' || (P === 'lfac' && S.lad && S.lad.rows.length === 1));
     const curL   = (P === 'pow' || P === 'vq') ? S.letters[S.vi] : null;
     const box = $('box');
     box.style.gridTemplateColumns = 'max-content repeat('+n+',max-content)';
 
-    let h = '<div class="gcfcell" style="grid-column:1;grid-row:1">'+gcfCellHTML()+'</div>';
+    let h = '<div class="gcfcell" style="grid-column:1;grid-row:1">'+(S.lad ? rungFactorHTML(0) : gcfCellHTML())+'</div>';
     T.forEach((t,i)=>{
       const hv = (P === 'pow') ? curL : ((P === 'vq' && i === S.qi) ? curL : null);
       const hn = hlNum || (P === 'numq' && i === S.qi);
       h += '<div class="tcell'+(i === 0 ? ' first' : '')+(i === n-1 ? ' last' : '')
-         + '" style="grid-column:'+(i+2)+';grid-row:1">'
-         + termHTML(t,{hlNum:hn,hlVar:hv,sign:i > 0}) + '</div>';
+         + '" data-t="'+i+'" style="grid-column:'+(i+2)+';grid-row:1">'
+         + termHTML(t,{hlNum:hn,hlVar:hv,sign:i > 0,
+                       role:(P === 'vq' && i === S.qi) ? 'top' : '',
+                       faint:(P === 'vq' && S.letters.length > 1) ? curL : null,
+                       idle:(P === 'vq' && i !== S.qi) ? curL : null}) + '</div>';
     });
-    T.forEach((t,i)=>{
+    if(S.lad) h += rungsHTML();
+    else T.forEach((t,i)=>{
       h += '<div class="qcell" style="grid-column:'+(i+2)+';grid-row:2">'+quotCellHTML(i)+'</div>';
     });
     if(P === 'done'){
-      h += '<div class="drop" style="grid-column:1;grid-row:3;animation-delay:0s"><span class="arw"></span></div>';
+      h += '<div class="drop gdrop" style="grid-column:1;grid-row:3;animation-delay:0s">'
+         + '<span class="anchor"><span class="ghostw" aria-hidden="true">'+gcfHTML()+'</span><span class="arw"></span></span></div>';
       T.forEach((t,i)=>{
         h += '<div class="drop" style="grid-column:'+(i+2)+';grid-row:3;animation-delay:'
            + ((i+1)*0.13).toFixed(2)+'s"><span class="arw"></span></div>';
       });
     }
+    if(P === 'done') h += answerRowHTML();
     box.innerHTML = h;
 
-    $('after').innerHTML = (P === 'done' ? answerHTML() : '') + ladderHTML();
+    $('above').innerHTML = stretchHTML();
+    $('side').innerHTML = sideHTML();
+    $('after').innerHTML = '';
     $('coach').innerHTML = coachHTML();
     wire();
+    fitStage();
     const inp = $('ans'); if(inp) inp.focus();
     S.fresh = null;
   }
 
-  function answerHTML(){
-    const inner = S.terms.map((t,i)=>{
+  /* final answer laid out in row 4 of the box: the gcf under the gcf, each leftover under its own term */
+  function answerRowHTML(){
+    const n = S.terms.length, delay = ((n+1)*0.13).toFixed(2);
+    let h = '<div class="acell agcf" style="grid-column:1;grid-row:4;animation-delay:'+delay+'s">'+gcfHTML()+'</div>';
+    S.terms.forEach((t,i)=>{
       const q = mono(Math.abs(S.qc[i]), S.qv[i], S.letters);
-      return (i ? (S.qc[i] < 0 ? ' <span class="sign">&minus;</span> ' : ' <span class="sign">+</span> ')
-                : (S.qc[i] < 0 ? '<span class="sign">&minus;</span>' : '')) + q;
-    }).join('');
-    return '<div class="answer" style="animation-delay:'+((S.terms.length+1)*0.13).toFixed(2)+'s">'
-         + gcfHTML() + '<span class="paren">(</span>' + inner + '<span class="paren">)</span></div>';
+      const join = i === 0 ? '' : '<span class="join">'+(S.qc[i] < 0 ? '&minus;' : '+')+'</span>';
+      const inner = (i === 0 ? '<span class="paren open">(</span>' : '')
+                  + (i === 0 && S.qc[i] < 0 ? '&minus;' : '') + q
+                  + (i === n-1 ? '<span class="paren close">)</span>' : '');
+      h += '<div class="acell" style="grid-column:'+(i+2)+';grid-row:4;animation-delay:'+delay+'s">'
+         + join + '<span class="aterm">'+inner+'</span></div>';
+    });
+    return h;
   }
 
   /* ---------------- ladder (optional helper for the numbers) ---------------- */
@@ -528,46 +897,308 @@
   const lrow  = () => S.lad.rows[S.lad.rows.length-1];
   const lprev = () => S.lad.rows[S.lad.rows.length-2];
   const lfacs = () => S.lad.rows.filter(r=>r.f !== null).map(r=>r.f);
+  const lprod = () => lfacs().reduce((a,b)=>a*b, 1);
 
-  function openLadder(){
-    S.lad = { rows:[{ f:null, ns:S.terms.map(t=>t.c) }], li:0 };
+  function openLadder(lead){
+    S.lad = { rows:[{ f:null, ns:S.terms.map(t=>t.sign * t.c) }], li:0 };
     S.phase = 'lfac';
-    say(S.terms.some(t=>t.sign < 0)
-        ? 'Signs stay out of this part — work with the sizes of the numbers.'
-        : 'Pull out any common factor you can spot — small ones are fine.','tip');
+    if(typeof lead === 'string') S.flub = true;   /* got here from a wrong GCF */
+    const how = S.terms.some(t=>t.sign < 0)
+        ? 'Pull out any common factor you can spot. Keep the signs as you split — a negative number stays negative unless you pull out a negative.'
+        : 'Pull out any common factor you can spot — small ones are fine.';
+    say(typeof lead === 'string' ? '<span class="lead">' + lead + '</span> ' + how : how, 'tip');
     render();
   }
+  /* a factor every number shares, but not the whole GCF (and not a sign slip on the GCF) */
+  function isSharedFactor(v){
+    const a = Math.abs(v);
+    return a > 1 && a !== S.g && S.terms.every(t=>t.c % a === 0);
+  }
+  /* they typed a common factor: write it on the first rung and start splitting */
+  function startLadderWith(f){
+    S.lad = { rows:[{ f:f, ns:S.terms.map(t=>t.sign * t.c) }, { f:null, ns:[] }], li:0 };
+    S.phase = 'ldiv'; S.fresh = 'lf0';
+    say(signed(f) + ' goes into ' + (S.terms.length > 2 ? 'all of them' : 'both') + '. Split each number by ' + signed(f)
+        + (S.terms.some(t=>t.sign < 0) || f < 0 ? ' &mdash; signs and all.' : '.'),'ok');
+  }
+  /* phone number pads have no minus key, so only ask for one when a minus could be needed */
+  const numMode = () => (S.terms.some(t=>t.sign < 0) || (S.lad && S.lad.rows.some(r=>r.f !== null && r.f < 0))) ? '' : ' inputmode="numeric"';
   function closeLadder(){
     S.lad = null; S.phase = 'num'; say('','');
     render();
   }
-  function ladderHTML(){
-    if(!S.lad) return '';
+  /* the factor at the left of rung r (rung 0 is the problem itself) */
+  function rungFactorHTML(r){
+    const P = S.phase, R = S.lad.rows, row = R[r], isLast = r === R.length-1;
+    if(row.f !== null) return '<span class="c'+(S.fresh === 'lf'+r ? ' fresh' : '')+'">'+signed(row.f)+'</span>';
+    if(isLast && P === 'lfac')
+      return '<input class="cell" id="ans"'+numMode()+' autocomplete="off" aria-label="a factor every number shares">';
+    if(isLast && P === 'lmul')
+      return '<span class="times">&times;</span><input class="cell" id="ans"'
+           + (S.gs < 0 ? '' : ' inputmode="numeric"')
+           + ' autocomplete="off" aria-label="the factors on the left multiplied together">';
+    return '';
+  }
+  /* rungs 1.. of the ladder, drawn straight under the terms of the problem */
+  function rungsHTML(){
     const P = S.phase, R = S.lad.rows, k = S.terms.length;
-    let h = '<div class="work"><div class="wlab">Breaking the numbers down</div>';
-    R.forEach((r,i)=>{
-      const isLast = i === R.length-1;
-      const bracket = !isLast || P === 'lfac';
-      let fc;
-      if(r.f === null && isLast && P === 'lfac')
-        fc = '<div class="fcell br"><input class="cell" id="ans" inputmode="numeric" autocomplete="off" aria-label="common factor"></div>';
-      else if(r.f === null)
-        fc = '<div class="fcell'+(bracket ? ' br' : '')+'"></div>';
-      else
-        fc = '<div class="fcell'+(bracket ? ' br' : '')+'"><span class="'+(S.fresh === 'lf'+i ? 'fresh' : '')+'">'+r.f+'</span></div>';
-
-      let cells = '';
+    let h = '';
+    for(let r=1;r<R.length;r++){
+      const row = R[r], isLast = r === R.length-1;
+      const br = !isLast || P === 'lfac';
+      h += '<div class="lfcell'+(isLast && P === 'lmul' ? ' mul' : '')+'" style="grid-column:1;grid-row:'+(r+1)+'">'+rungFactorHTML(r)+'</div>';
       for(let j=0;j<k;j++){
+        let c;
         if(isLast && P === 'ldiv' && j === S.lad.li)
-          cells += '<div class="slot"><input class="cell" id="ans" inputmode="numeric" autocomplete="off" aria-label="quotient"></div>';
-        else if(r.ns[j] === undefined || r.ns[j] === null)
-          cells += '<div class="ncell"></div>';
-        else
-          cells += '<div class="ncell"><span class="'+(S.fresh === 'ln'+i+'.'+j ? 'fresh' : '')+'">'+r.ns[j]+'</span></div>';
+          c = '<input class="cell" id="ans"'+numMode()+' autocomplete="off" aria-label="'+R[r-1].ns[j]+' divided by '+R[r-1].f+', sign included">';
+        else if(row.ns[j] === undefined) c = '';
+        else c = '<span class="'+(S.fresh === 'ln'+r+'.'+j ? 'fresh' : '')+'">'+signed(row.ns[j])+'</span>';
+        h += '<div class="rcell'+(br ? ' br' : '')+(j === 0 ? ' first' : '')+(j === k-1 ? ' last' : '')
+           + '" style="grid-column:'+(j+2)+';grid-row:'+(r+1)+'">'+c+'</div>';
       }
-      h += '<div class="lvl">'+fc+'<div class="terms'+(bracket ? ' closed' : '')+'">'+cells+'</div></div>';
+    }
+    return h;
+  }
+  /* numbers are done: the ladder folds away — the product becomes the gcf, the bottom rung becomes the leftovers */
+  function foldLadder(){
+    const bottom = lrow().ns;
+    const flipped = S.terms.some((t,i)=>(t.sign * t.c / G()) !== bottom[i]);
+    S.terms.forEach((t,i)=>{ S.qc[i] = t.sign * t.c / G(); });
+    S.lad = null;
+    S.gotG = true;
+    S.fresh = 'g';
+    startLetters();
+    if(S.phase === 'pow' || S.phase === 'ready')
+      say('Numbers done &mdash; the bottom row is what is left of each one.'
+          + (flipped ? ' Taking the minus out flips every sign in that row.' : '')
+          + (S.phase === 'pow' ? ' Now the letters.' : ''),'ok');
+  }
+
+  /* ---------------- stretched-out powers (shown while finding the letter's power) ---------------- */
+
+  function stretchHTML(){
+    if(S.phase !== 'pow') return '';
+    const li = S.vi, L = S.letters[li], lo = S.ge[L];
+    const ex = S.terms.map(t=>t.ex[L] || 0), wide = Math.max(...ex);
+    let h = '<div class="stretchwrap"><div class="stretch'+(S.lit ? ' lit' : '')+'" id="stretch"'
+          + ' role="img" aria-label="'+ex.map(e=>L+' to the '+e+' written as '+e+' '+L+'&rsquo;s').join('; ')+'"'
+          + ' style="grid-template-columns:max-content repeat('+wide+',max-content)">';
+    ex.forEach(e=>{
+      h += '<div class="slbl v'+li+'">'+power(L,e)+'<span class="eq">=</span></div>';
+      for(let i=0;i<wide;i++){
+        h += i < e
+          ? '<div class="tile v'+li+(i < lo ? ' shared' : '')+'" style="--i:'+i+'">'+L+'</div>'
+          : '<div class="tile gone"></div>';
+      }
     });
-    return h + '</div>';
+    return h + '</div></div>';
+  }
+
+  /* the term's power over the gcf's power, e.g. g⁶/g⁵ — plus the written-out version when they differ */
+  /* the answer as an area model: the gcf down the side, each leftover piece across the top,
+     and every box inside is one of the original terms (side × top) */
+  /* the answer as an area model. Numbers: gcf rows × leftover columns of dots.
+     Letters: each box gets the side's letters (pink) plus the top's letters (green), written out so they can be counted. */
+  function doneHTML(){
+    const n = S.terms.length, t0 = (n + 2) * 0.13;
+    const neg = G() < 0;
+    /* the gcf as one pink chip: the same chip sits on the side and inside every box */
+    const chip = '<span class="gchip">' + gcfPlain() + '</span>';
+    /* what is left of each term once the gcf comes out */
+    const left = i => {
+      const q = S.qc[i], v = S.qv[i], anyV = S.letters.some(L=>v[L]);
+      return (q < 0 ? '&minus;' : '') + (Math.abs(q) !== 1 || !anyV ? Math.abs(q) : '')
+           + S.letters.map(L=>power(L, v[L] || 0)).join('');
+    };
+    let g = '<div class="amodel" style="grid-template-columns:max-content repeat('+n+',minmax(5.5em,max-content))"'
+          + ' role="img" aria-label="Area model: '+gcfPlain().replace(/&minus;/g,'minus ').replace(/<[^>]+>/g,'')
+          + ' times each piece gives back each term">';
+    g += '<div class="acorner"></div>';
+    S.terms.forEach((t,i)=>{
+      g += '<div class="atop" style="animation-delay:'+(t0 + i*0.12).toFixed(2)+'s"><span class="lchip">'+left(i)+'</span></div>';
+    });
+    g += '<div class="aside" style="animation-delay:'+t0.toFixed(2)+'s">'+chip+'</div>';
+    S.terms.forEach((t,i)=>{
+      const d = t0 + 0.35 + i*0.15;
+      const l = left(i), lw = S.qc[i] < 0 ? '(' + l + ')' : l;
+      g += '<div class="abox split'+(i === 0 ? ' first' : '')+'" style="animation-delay:'+(t0 + 0.25).toFixed(2)+'s">'
+         + '<div class="aterm" style="animation-delay:'+d.toFixed(2)+'s">'+termHTML(t,{})+'</div>'
+         + '<div class="apart" style="animation-delay:'+(d + 0.2).toFixed(2)+'s">'+chip
+         + '<span class="ax">&middot;</span><span class="lchip">'+lw+'</span></div></div>';
+    });
+    g += '</div>';
+
+    let cap = 'Every term has <span class="gchip sm">' + gcfPlain() + '</span> inside it &mdash; that is the GCF. '
+            + 'It goes down the side; what is left of each term goes on top.';
+    if(neg) cap += ' The leading term is negative, so the GCF takes the minus sign.';
+    return '<div class="done"><h2>Factored</h2>' + g + '<p class="acap">' + cap + '</p></div>';
+  }
+  function sideHTML(){
+    if(S.phase === 'done') return doneHTML();
+    if(S.phase !== 'vq') return '';
+    const L = S.letters[S.vi], t = S.terms[S.qi], v = 'v' + S.vi, a = t.ex[L] || 0, b = S.ge[L];
+    return '<div class="frac"><span class="top" id="fnum">'+power(L,a)+'</span>'
+         + '<span class="bot" id="fden">'+power(L,b)+'</span></div>'
+         /* only write it out long when something is left over — an all-cancelled row can read as 0 */
+         + (a !== b ? '<span class="feq">=</span>' + cancelHTML(L, a, b, v) : '');
+  }
+
+  /* arrows from each term's power up to its written-out row. Routed in lanes so they never cross:
+     up from the term, left along its own lane, up the left side, then right into the row. */
+  function drawLinks(){
+    const svg = $('links'), st = $('stretch'), stage = $('stage'), above = $('above');
+    svg.innerHTML = '';
+    stage.style.paddingBottom = ''; stage.style.paddingTop = '';
+    $('side').style.marginTop = '';
+    if(S.phase === 'done') return;
+    if(S.phase === 'vq'){ above.style.marginLeft = ''; above.style.paddingBottom = ''; drawSideLinks(); return; }
+    if(!st){ above.style.marginLeft = ''; above.style.paddingBottom = ''; return; }
+    const n = S.terms.length, gap = 16;
+    const first = document.querySelector('#box .tcell.first');
+    above.style.marginLeft = (first.offsetLeft + 20) + 'px';
+    above.style.paddingBottom = (22 + n * gap) + 'px';
+    const o = stage.getBoundingClientRect();
+    const rel = r => ({ l:r.left-o.left, r:r.right-o.left, t:r.top-o.top, b:r.bottom-o.top });
+    
+    const labels = st.querySelectorAll('.slbl');
+    const boxTop = rel($('box').getBoundingClientRect()).t;
+    const colour = getComputedStyle(labels[0]).color;
+    let out = '';
+    for(let i=0;i<n;i++){
+      const v = document.querySelector('#box .tcell[data-t="'+i+'"] .vp.asking');
+      const lb = labels[i]; if(!v || !lb) continue;
+      const a = rel(v.getBoundingClientRect()), b = rel(lb.getBoundingClientRect());
+      const sx = (a.l + a.r) / 2, sy = a.t - 4;
+      const ex = b.l - 12, ey = (b.t + b.b) / 2;
+      const lane = boxTop - 10 - i * gap;            /* first term: lowest lane */
+      const side = b.l - 22 - (n - 1 - i) * gap;       /* first term: furthest left */
+      out += '<path stroke="'+colour+'" d="'+rounded([[sx,sy],[sx,lane],[side,lane],[side,ey],[ex,ey]], 9)+'"/>'
+           + '<path class="tip" fill="'+colour+'" d="M'+(ex+6)+' '+ey+' L'+(ex-3)+' '+(ey-5.5)+' L'+(ex-3)+' '+(ey+5.5)+' Z"/>';
+    }
+    svg.innerHTML = out;
+  }
+  /* vq: an arc over the problem from the term's power to the top of the fraction,
+     and a swoop under it from the gcf's power to the bottom */
+  function drawSideLinks(){
+    const svg = $('links'), stage = $('stage'), side = $('side');
+    const num = $('fnum'), den = $('fden');
+    const tv = document.querySelector('#box .tcell[data-t="'+S.qi+'"] .vp.asking');
+    const gv = document.querySelector('#box .gcfcell [data-gl="'+S.vi+'"]');
+    const bar = document.querySelector('#box .tcell.first');
+    side.style.marginTop = '';
+    if(!num || !den || !tv || !gv || !bar) return;
+    const box = $('box');
+    /* line the fraction bar up with the division bar */
+    const fb = den.getBoundingClientRect().top, db = bar.getBoundingClientRect().bottom;
+    side.style.marginTop = Math.max(0, db - fb + (box.getBoundingClientRect().top - side.getBoundingClientRect().top)) + 'px';
+    const o = stage.getBoundingClientRect();
+    const rel = r => ({ l:r.left-o.left, r:r.right-o.left, t:r.top-o.top, b:r.bottom-o.top });
+    const B = rel(box.getBoundingClientRect()), Sd = rel(side.getBoundingClientRect());
+    if(Sd.t >= B.b - 4) return;                 /* narrow screen: fraction wrapped underneath, no arrows */
+    const T = rel(tv.getBoundingClientRect()), G = rel(gv.getBoundingClientRect());
+    const N = rel(num.getBoundingClientRect()), D = rel(den.getBoundingClientRect());
+    const colour = getComputedStyle(num).color;
+    stage.style.paddingTop = '3.25rem'; stage.style.paddingBottom = '3.25rem';
+    
+    /* a rounded run through pts, then a smooth curve into (ex,ey) with an arrowhead */
+    const run = (pts, ex, ey, col)=>{
+      const [lx,ly] = pts[pts.length-1];
+      const k = Math.min(30, Math.max(6, (ex - lx) * .5));
+      const ang = Math.atan2(ey-ly, ex-(lx+k)), h = 11, w = 6.5;
+      const bx = ex - Math.cos(ang)*h, by = ey - Math.sin(ang)*h;
+      const px = -Math.sin(ang)*w, py = Math.cos(ang)*w;
+      const d = rounded(pts, 22) + ' C'+(lx+k)+' '+ly+' '+(lx+k)+' '+ly+' '+bx+' '+by;
+      return '<path stroke="'+col+'" d="'+d+'"/>'
+           + '<path class="tip" fill="'+col+'" d="M'+ex+' '+ey+' L'+(bx+px)+' '+(by+py)+' L'+(bx-px)+' '+(by-py)+' Z"/>';
+    };
+    /* re-measure: the padding just moved everything down */
+    const o2 = stage.getBoundingClientRect();
+    const rl = r => ({ l:r.left-o2.left, r:r.right-o2.left, t:r.top-o2.top, b:r.bottom-o2.top });
+    const b2 = rl(box.getBoundingClientRect()), t2 = rl(tv.getBoundingClientRect()), g2 = rl(gv.getBoundingClientRect());
+    const n2 = rl(num.getBoundingClientRect()), d2 = rl(den.getBoundingClientRect());
+    const peak = Math.min(b2.t, n2.t) - 26, trough = b2.b + 22;
+    const nx = n2.l - 8, ny = (n2.t + n2.b) / 2, dx = d2.l - 8, dy = (d2.t + d2.b) / 2;
+    const sx = (t2.l + t2.r) / 2, gx = (g2.l + g2.r) / 2;
+    
+    /* flat runs over the top and under the bottom, rounded at the ends, so nothing in the box is crossed */
+    svg.innerHTML =
+        run([[sx, t2.t - 4], [sx, peak], [Math.max(sx + 24, nx - 60), peak]], nx, ny, colour)
+      + run([[gx, g2.b + 4], [gx, trough], [Math.max(gx + 24, dx - 70), trough]], dx, dy, getComputedStyle(den).color);
+  }
+
+  function rounded(pts, r){
+    let d = 'M' + pts[0][0] + ' ' + pts[0][1];
+    for(let i=1;i<pts.length-1;i++){
+      const [px,py] = pts[i-1], [cx,cy] = pts[i], [nx,ny] = pts[i+1];
+      const l1 = Math.hypot(cx-px, cy-py), l2 = Math.hypot(nx-cx, ny-cy);
+      const k = Math.min(r, l1/2, l2/2);
+      if(!k){ d += ' L' + cx + ' ' + cy; continue; }
+      d += ' L' + (cx + (px-cx)/l1*k) + ' ' + (cy + (py-cy)/l1*k)
+         + ' Q' + cx + ' ' + cy + ' ' + (cx + (nx-cx)/l2*k) + ' ' + (cy + (ny-cy)/l2*k);
+    }
+    const e = pts[pts.length-1];
+    return d + ' L' + e[0] + ' ' + e[1];
+  }
+  /* make the whole problem fit the card with no sideways scrolling:
+     first tuck extras underneath (written-out fraction, the multiply-back check), then shrink the maths */
+  function fitStage(){
+    const stage = $('stage'), wrap = document.querySelector('.boxwrap');
+    const side = $('side'), mrow = document.querySelector('.mrow');
+    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const bigNow = () => parseFloat(stage.style.getPropertyValue('--big'))
+                      || parseFloat(getComputedStyle(stage).getPropertyValue('--big')) * rootPx || 40;
+    const over = () => stage.scrollWidth > wrap.clientWidth + 1;
+    const shrinkToWidth = () => {
+      for(let k=0;k<6 && over();k++){
+        stage.style.setProperty('--big', Math.max(12, bigNow() * (wrap.clientWidth / stage.scrollWidth) * 0.97) + 'px');
+        drawLinks();
+      }
+    };
+    /* how far the Next button sits below the bottom of the window (laptops only) */
+    const below = () => {
+      const nx = $('next'); if(!nx || window.innerWidth <= 600) return 0;
+      return nx.getBoundingClientRect().bottom + window.scrollY - (window.innerHeight - 10);
+    };
+    const reset = () => {
+      stage.style.removeProperty('--big'); side.style.maxWidth = '';
+      side.classList.remove('stack'); mrow.classList.remove('under');
+      drawLinks();
+    };
+    reset();
+
+    mrow.classList.toggle('fin', S.phase === 'done');
+    if(S.phase === 'done'){
+      /* first try the check beside the problem (shrinking to fit across); if that still runs off the bottom,
+         put it underneath and shrink until the Next button is on screen */
+      shrinkToWidth();
+      if(below() > 0 || bigNow() < 20){
+        reset();
+        if(over()){
+          mrow.classList.add('under');
+          /* underneath, the check gets the card's width and wraps/scrolls itself rather than shrinking the problem */
+          side.style.maxWidth = wrap.clientWidth + 'px';
+        }
+        drawLinks(); shrinkToWidth();
+        for(let k=0;k<10 && below() > 0;k++){
+          const h = stage.getBoundingClientRect().height, nb = bigNow() * Math.max(0.7, (h - below()) / h) * 0.98;
+          if(nb < 20){ stage.style.setProperty('--big', '20px'); drawLinks(); break; }
+          stage.style.setProperty('--big', nb + 'px'); drawLinks();
+        }
+      }
+      return;
+    }
+
+    if(over() && S.phase === 'vq'){ side.classList.add('stack'); drawLinks(); }
+    shrinkToWidth();
+    /* still too wide (small phones): the fraction goes underneath the problem */
+    if(over() && S.phase === 'vq'){ mrow.classList.add('under'); drawLinks(); }
+  }
+  window.addEventListener('resize', ()=>{ if(S) fitStage(); });
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ if(S) fitStage(); });
+
+  function lightStretch(){
+    S.lit = true;
+    const st = $('stretch'); if(st) st.classList.add('lit');
   }
 
   /* ---------------- coach ---------------- */
@@ -578,25 +1209,25 @@
 
     if(P === 'num'){
       prompt = 'What is the largest number that divides ' + listHTML(T.map(t=>signed(t.sign * t.c))) + '?';
-      extra = '<div class="answerbar"><button class="btn ghost small" id="hint">Hint</button>'
-            + '<button class="btn ghost small" id="ladder">Break it down</button></div>';
+      extra = '';   /* student version: no Hint / Break it down — a wrong or partial answer opens the breakdown itself */
     }
     else if(P === 'lfac'){
       const ns = lrow().ns, first = S.lad.rows.length === 1;
-      prompt = (first ? 'What number divides all of ' : 'Keep going — what divides ') + listHTML(ns) + '?';
-      extra = '<div class="answerbar"><button class="btn ghost small" id="hint">Hint</button>'
+      prompt = (first ? 'What number divides all of ' : 'Keep going — what divides ') + listHTML(ns.map(signed)) + '?';
+      extra = '<div class="answerbar">'
             + (first ? '<button class="btn ghost small" id="skip">I can see it</button>' : '')
             + '</div>';
     }
     else if(P === 'ldiv'){
       const p = lprev(), j = S.lad.li;
-      prompt = '<span class="n">'+p.ns[j]+' &divide; '+p.f+'</span> = ?';
+      prompt = '<span class="n">'+signed(p.ns[j])+' &divide; '+(p.f < 0 ? '('+signed(p.f)+')' : p.f)+'</span> = ?';
       extra = btns();
     }
     else if(P === 'lmul'){
       prompt = 'Nothing is left to pull out. Multiply straight down the left side: '
-             + '<span class="n">'+lfacs().join(' &times; ')+'</span>'
-             + (S.gs < 0 ? ' &mdash; and keep the minus from the first term.' : '');
+             + '<span class="n">'+lfacs().map(signed).join(' &times; ')+'</span>'
+             + (lprod() !== G() ? (G() < 0 ? ' &mdash; then make it negative, because the first term is.'
+                                           : ' &mdash; then drop the minus, because the first term is positive.') : '');
       extra = btns();
     }
     else if(P === 'numq'){
@@ -612,32 +1243,79 @@
     }
     else if(P === 'vq'){
       const L = S.letters[S.vi], t = T[S.qi], v = 'v' + S.vi;
-      prompt = 'Take <span class="n '+v+'">'+power(L,S.ge[L])+'</span> out of <span class="n">'+mono(t.c,t.ex,S.letters)+'</span>.';
-      extra = '<div class="answerbar"><div class="frac '+v+'"><span class="top">'+power(L,t.ex[L]||0)+'</span>'
-            + '<span class="bot">'+power(L,S.ge[L])+'</span></div>'
-            + '<button class="btn ghost small" id="hint">Hint</button></div>';
+      const rest = S.letters.map(M=>M === L ? '<span class="n top">'+power(M,t.ex[M]||0)+'</span>' : power(M,t.ex[M]||0)).join('');
+      prompt = 'Take <span class="n bot">'+power(L,S.ge[L])+'</span> out of '+(t.c === 1 ? '' : t.c)+rest+'.';
+      extra = btns();
     }
     else if(P === 'ready'){
       prompt = 'That is the whole common factor. Bring it down.';
       extra = '<div class="answerbar"><button class="btn" id="bring">Bring it down</button></div>';
     }
     else if(P === 'done'){
-      const check = S.terms.map((t,i)=>{
-        const q = mono(Math.abs(S.qc[i]), S.qv[i], S.letters);
-        return gcfProd() + ' &middot; ' + (S.qc[i] < 0 ? '(&minus;'+q+')' : q)
-             + ' = ' + (t.sign < 0 ? '&minus;' : '') + mono(t.c,t.ex,S.letters);
-      }).join('<br>');
-      return '<div class="done"><h2>Factored</h2>'
-           + '<div class="verify">Multiply back to check:<br>'+check+'</div></div>'
-           + '<div class="answerbar" style="margin-top:16px"><button class="btn" id="next">Next problem</button>'
+      /* the multiply-back check lives beside the problem (sideHTML), so the buttons stay on screen */
+      return '<div class="answerbar"><button class="btn" id="next">Next problem</button>'
            + '<button class="btn ghost" id="again">Redo this one</button></div>';
     }
     return '<p class="prompt">'+prompt+'</p>'+extra+'<div class="msg '+(S.kind||'')+'">'+(S.msg||'')+'</div>';
   }
-  const btns = () => '<div class="answerbar"><button class="btn ghost small" id="hint">Hint</button></div>';
+  /* g·g·g·g·g over g·g·g·g·g — each top letter paired with the one under it and struck off together */
+  function cancelHTML(L,top,bot,v){
+    const row = (k,isTop)=>{
+      let h = '<div class="crow">';
+      for(let i=0;i<k;i++){
+        if(i) h += '<span class="dot">&middot;</span>';
+        h += '<span class="cg '+(isTop ? 'top ' : 'bot ')+(i < bot ? 'x' : 'keep')+'" style="--i:'+i+'"><i>'+L+'</i></span>';
+      }
+      return h + '</div>';
+    };
+    return '<div class="cancel '+v+'" role="img" aria-label="'+L+' written out '+top+' times over '+bot
+         + ' times; '+bot+' pairs cancel, leaving '+(top-bot === 0 ? '1' : L+' to the '+(top-bot))+'">'
+         + row(top,true) + '<div class="cbar"></div>' + row(bot,false) + '</div>';
+  }
+  const btns = () => '';
+
+  /* in the letters box, a number typed after a letter becomes a small raised exponent */
+  function raiseExp(inp){
+    const v = inp.value;
+    const nv = v.replace(/([a-zA-Z])\^?(\d+)/g,(_,l,dg)=>l+dg.split('').map(c=>SUP[+c]).join(''));
+    if(nv === v) return;
+    const pos = inp.selectionStart, atEnd = pos === v.length;
+    inp.value = nv;
+    const p = atEnd ? nv.length : Math.max(0,pos-(v.length-nv.length));
+    inp.setSelectionRange(p,p);
+  }
+  function drawMir(inp,mir){
+    const v = inp.value, f = document.activeElement === inp;
+    const s = f ? inp.selectionStart : -1, e = f ? inp.selectionEnd : -1;
+    const isSup = c => !!c && SUP.indexOf(c) > -1;
+    const caret = i => {
+      if(!f || s !== e || s !== i) return '';
+      const p = v.charAt(i-1);
+      return '<span class="cur'+(p === '^' || isSup(p) ? ' up' : '')+'"></span>';
+    };
+    let h = '';
+    for(let i=0;i<v.length;i++){
+      h += caret(i);
+      const c = v.charAt(i);
+      let o = c === '^' ? '<span class="xslot"></span>'
+            : isSup(c) ? '<sup>'+SUP.indexOf(c)+'</sup>'
+            : c === '<' ? '&lt;' : c === '&' ? '&amp;' : c;
+      if(f && s !== e && i >= s && i < e) o = '<span class="sel">'+o+'</span>';
+      h += o;
+    }
+    h += caret(v.length);
+    mir.innerHTML = '<span class="mtx">'+h+'</span>';
+  }
 
   function wire(){
     const inp = $('ans');
+    const mir = inp && inp.parentNode.querySelector('.mmir');
+    if(inp && mir){
+      const redraw = () => drawMir(inp,mir);
+      inp.addEventListener('input', ()=>{ raiseExp(inp); redraw(); });
+      ['focus','blur','keyup','keydown','mouseup','select'].forEach(ev=>inp.addEventListener(ev,()=>setTimeout(redraw,0)));
+      setTimeout(redraw,0);
+    }
     if(inp){
       inp.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); clearTimers(); submit(true); }});
       inp.addEventListener('input', onType);
@@ -666,6 +1344,7 @@
 
   function afterNumber(){
     S.gotG = true;
+    S.lad = null;   // GCF found — clear the ladder so the rest of the problem has the stage
     S.fresh = 'g';
     if(S.g === 1 && S.gs > 0){
       S.terms.forEach((t,i)=>{ S.qc[i] = t.sign * t.c; });
@@ -697,7 +1376,7 @@
       nextLetter();
       return;
     }
-    S.phase = 'pow'; S.qi = 0;
+    S.phase = 'pow'; S.qi = 0; S.lit = false;
     if(S.vi === 0 && (S.g !== 1 || S.gs < 0))
       say(S.letters.length === 1 ? 'Numbers done. Now the letter.'
                                  : 'Numbers done. Now the letters, one at a time.','ok');
@@ -705,9 +1384,25 @@
 
   function bringDown(){
     S.phase = 'done';
-    solved++; $('solved').textContent = solved;
+    solved++;
     say('','');
     render();
+    /* tell the shell — a redo of the same problem does not count twice */
+    if(!S.redo){
+      try{ parent.postMessage({ drill:'solved', skill:'factor', level, q:plainText(exprText(S.terms,S.letters)),
+                                a:plainText(answerText()), clean:!S.flub }, '*'); }catch(e){}
+    }
+  }
+  function plainText(h){
+    return String(h).replace(/<sup>(\d+)<\/sup>/g,(_,d)=>d.split('').map(c=>SUP[+c]).join(''))
+      .replace(/&minus;/g,'\u2212').replace(/<[^>]+>/g,'');
+  }
+  function answerText(){
+    const inside = S.terms.map((t,i)=>{
+      const q = S.qc[i], m = mono(Math.abs(q), S.qv[i], S.letters);
+      return i === 0 ? (q < 0 ? '&minus;' : '') + m : (q < 0 ? ' &minus; ' : ' + ') + m;
+    }).join('');
+    return gcfPlain() + '(' + inside + ')';
   }
 
   /* ---------------- checking ---------------- */
@@ -715,13 +1410,25 @@
   function say(m,k){ S.msg = m; S.kind = k; }
   function softMsg(m){ const e = document.querySelector('.msg'); if(e && m){ e.className = 'msg tip'; e.innerHTML = m; } }
   function bad(m){
+    if(m !== 'Type an answer first.') S.flub = true;
     const inp = $('ans');
     if(inp){ inp.classList.add('wrong'); setTimeout(()=>inp.classList.remove('wrong'),320); inp.select(); }
     say(m,'err');
     const e = document.querySelector('.msg'); if(e){ e.className = 'msg err'; e.innerHTML = m; }
   }
 
-  function isLadFactor(v){ return v > 1 && lrow().ns.every(x=>x % v === 0); }
+  /* the power typed beside the gcf: the letter and its exponent, e.g. m, m2, m^3, m³ */
+  function readPow(raw){
+    const L = S.letters[S.vi];
+    if(/^\s*\d+\s*$/.test(raw)) return { err:'Write the ' + L + ' too, with its power after it.' };
+    const m = parseMono(raw);
+    if(!m) return { err:'Write it as ' + L + ', ' + L + '<sup>2</sup>, ' + L + '<sup>3</sup>&hellip;' };
+    if(m.c !== 1 || Object.keys(m.ex).some(x=>x !== L))
+      return { err:'Just the ' + L + ' part &mdash; the numbers are already done.' };
+    return { e: m.ex[L] || 0 };
+  }
+
+  function isLadFactor(v){ return Math.abs(v) > 1 && lrow().ns.every(x=>x % v === 0); }
 
   function wanted(){
     const P = S.phase;
@@ -737,15 +1444,20 @@
     const P = S.phase, T = S.terms;
     if(P === 'lfac'){
       const ns = lrow().ns, miss = ns.filter(x=>x % v !== 0);
-      if(v <= 1) return '1 divides everything but shrinks nothing. Pick a factor above 1.';
-      return v + ' does not divide ' + miss.join(' or ') + ' evenly.';
+      if(Math.abs(v) <= 1) return '1 divides everything but shrinks nothing. Pick a bigger factor.';
+      return signed(v) + ' does not divide ' + miss.map(signed).join(' or ') + ' evenly.';
     }
-    if(P === 'ldiv'){ const p = lprev(); return 'How many ' + p.f + 's fit into ' + p.ns[S.lad.li] + '?'; }
+    if(P === 'ldiv'){
+      const p = lprev(), x = p.ns[S.lad.li], want = x / p.f;
+      if(v === -want) return 'Right size, wrong sign. ' + signed(x) + ' &divide; ' + signed(p.f) + ' is '
+                           + (want < 0 ? 'negative' : 'positive') + ' &mdash; ' + signSentence(x, p.f) + '.';
+      return 'How many ' + Math.abs(p.f) + 's fit into ' + Math.abs(x) + '?';
+    }
     if(P === 'lmul'){
       if(Math.abs(v) === S.g) return S.gs < 0
         ? 'That is the right size. The first term is negative, so write &minus;' + S.g + '.'
         : 'Drop the minus — the first term is positive, so the factor is too.';
-      return 'Multiply every number in the left column: ' + lfacs().join(' &times; ') + '.';
+      return 'Multiply every number in the left column: ' + lfacs().map(signed).join(' &times; ') + '.';
     }
     if(P === 'num'){
       const a = Math.abs(v);
@@ -784,26 +1496,29 @@
     const P = S.phase;
 
     if(P === 'lfac'){
-      const v = Number(raw);
-      if(!Number.isInteger(v) || v < 1){ if(loud) bad('Whole numbers only.'); return; }
+      const v = numVal(raw);
+      if(!Number.isInteger(v) || v === 0){ if(loud) bad('Whole numbers only.'); return; }
       if(!isLadFactor(v)){ if(loud) bad(nudge(v)); return; }
       lrow().f = v;
       S.lad.rows.push({ f:null, ns:[] });
       S.lad.li = 0;
       S.phase = 'ldiv'; S.fresh = 'lf' + (S.lad.rows.length-2);
-      say('Now split each number by ' + v + '.','ok');
+      say('Now split each number by ' + signed(v) + ' &mdash; signs and all.','ok');
       render(); return;
     }
 
     if(P === 'ldiv'){
-      const v = Number(raw);
+      const v = numVal(raw);
       if(!Number.isInteger(v)){ if(loud) bad('Whole numbers only.'); return; }
       if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
       const r = lrow(), j = S.lad.li;
       r.ns[j] = v; S.fresh = 'ln' + (S.lad.rows.length-1) + '.' + j;
       S.lad.li++;
       if(S.lad.li >= S.terms.length){
-        if(gcdAll(r.ns) === 1){ S.phase = 'lmul'; say('That row has nothing left in common.','ok'); }
+        if(gcdAll(r.ns.map(Math.abs)) === 1){
+          if(S.lad.rows.length === 2 && S.lad.rows[0].f === G()){ foldLadder(); render(); return; }
+          S.phase = 'lmul'; say('That row has nothing left in common.','ok');
+        }
         else { S.phase = 'lfac'; say('These still share a factor. Add another rung.','tip'); }
       } else say('','');
       render(); return;
@@ -812,8 +1527,17 @@
     if(P === 'num' || P === 'lmul'){
       const v = numVal(raw);
       if(!Number.isInteger(v) || v === 0){ if(loud) bad('Whole numbers only.'); return; }
-      if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
-      afterNumber();
+      if(P === 'num' && isSharedFactor(v)){ clearTimers(); startLadderWith(v); render(); return; }
+      if(v !== wanted()){
+        if(!loud) return;
+        /* a wrong GCF (not just a wrong sign) sends them to break the numbers down */
+        if(P === 'num' && Math.abs(v) !== S.g){
+          clearTimers();
+          openLadder(nudge(v) + ' Let&rsquo;s break it down.');
+        } else bad(nudge(v));
+        return;
+      }
+      if(P === 'lmul') foldLadder(); else afterNumber();
       render(); return;
     }
 
@@ -828,9 +1552,10 @@
     }
 
     if(P === 'pow'){
-      const v = Number(raw);
-      if(!Number.isInteger(v) || v < 0){ if(loud) bad('Type the exponent as a whole number.'); return; }
-      if(v !== wanted()){ if(loud) bad(nudge(v)); return; }
+      const r = readPow(raw);
+      if(r.err){ if(loud) bad(r.err); return; }
+      const v = r.e;
+      if(v !== wanted()){ if(loud){ lightStretch(); bad(nudge(v)); } return; }
       const L = S.letters[S.vi];
       S.gp[L] = v; S.fresh = 'p' + S.vi;
       S.phase = 'vq'; S.qi = 0;
@@ -866,7 +1591,7 @@
       else if(T.every(t=>t.c % 5 === 0)) m = 'They all end in 0 or 5, so start at 5.';
       else if(T.every(t=>t.c % 3 === 0)) m = 'Every digit sum is a multiple of 3, so start at 3.';
       else m = 'The answer cannot be bigger than ' + Math.min(...T.map(t=>t.c)) + '. Work down from its factors.';
-      m += ' Or break it down one factor at a time.';
+      m += ' Or type any number they share and break it down from there.';
       if(S.gs < 0) m += ' And the first term is negative, so your factor is negative too.';
     }
     else if(P === 'lfac'){
@@ -874,12 +1599,15 @@
       if(ns.every(x=>x % 2 === 0)) m = 'They are all even, so 2 always works.';
       else if(ns.every(x=>x % 3 === 0)) m = 'Every digit sum is a multiple of 3 — try 3.';
       else if(ns.every(x=>x % 5 === 0)) m = 'They all end in 0 or 5 — try 5.';
-      else m = 'Try ' + smallestFactor(gcdAll(ns)) + '.';
+      else m = 'Try ' + smallestFactor(gcdAll(ns.map(Math.abs))) + '.';
     }
-    else if(P === 'ldiv'){ const p = lprev(); m = 'Count by ' + p.f + ' up to ' + p.ns[S.lad.li] + '.'; }
+    else if(P === 'ldiv'){
+      const p = lprev(), x = p.ns[S.lad.li];
+      m = 'Count by ' + Math.abs(p.f) + ' up to ' + Math.abs(x) + '. Then the sign: ' + signSentence(x, p.f) + '.';
+    }
     else if(P === 'lmul'){
-      m = 'Multiply the left column: ' + lfacs().join(' &times; ') + '.';
-      if(S.gs < 0) m += ' Then make it negative — the first term is.';
+      m = 'Multiply the left column: ' + lfacs().map(signed).join(' &times; ') + '.';
+      if(lprod() !== G()) m += G() < 0 ? ' Then make it negative — the first term is.' : ' Then drop the minus — the first term is positive.';
     }
     else if(P === 'numq'){
       const t = T[S.qi], want = wanted();
@@ -889,7 +1617,8 @@
     }
     else if(P === 'pow'){
       const L = S.letters[S.vi];
-      m = 'Find the term with the fewest ' + L + '&rsquo;s — that is your limit.';
+      m = 'The shaded columns are the ' + L + '&rsquo;s that every term has. Count them — that is as many as you can take out.';
+      lightStretch();
     }
     else if(P === 'vq'){
       const L = S.letters[S.vi], a = T[S.qi].ex[L] || 0, b = S.ge[L];
@@ -901,6 +1630,11 @@
     const inp = $('ans'); if(inp) inp.focus();
   }
 
+  /* e.g. "a negative divided by a positive is negative" */
+  function signSentence(a, b){
+    const w = x => x < 0 ? 'negative' : 'positive';
+    return 'a ' + w(a) + ' divided by a ' + w(b) + ' is ' + w(a * b);
+  }
   function smallestFactor(n){ for(let i=2;i<=n;i++){ if(n % i === 0) return i; } return n; }
 
   /* ---------------- typing ---------------- */
@@ -913,14 +1647,29 @@
     if(raw === '') return;
     const P = S.phase;
     if(P === 'lfac'){
-      const v = Number(raw);
+      const v = numVal(raw);
       if(!Number.isInteger(v)) return;
       if(isLadFactor(v)) tAdvance = setTimeout(()=>submit(false), 900);
-      else tNudge = setTimeout(()=>{ if(v > 1) softMsg(nudge(v)); }, 1500);
+      else tNudge = setTimeout(()=>{ if(Math.abs(v) > 1) softMsg(nudge(v)); }, 1500);
       return;
     }
-    if(P === 'num' || P === 'lmul' || P === 'ldiv' || P === 'numq' || P === 'pow'){
-      const v = (P === 'numq' || P === 'num' || P === 'lmul') ? numVal(raw) : Number(raw);
+    if(P === 'num'){
+      const v = numVal(raw);
+      if(!Number.isInteger(v)) return;
+      if(v === wanted()) tAdvance = setTimeout(()=>submit(false), 450);
+      else if(isSharedFactor(v)) tAdvance = setTimeout(()=>submit(false), 900);
+      else tNudge = setTimeout(()=>softMsg(nudge(v)), 1500);
+      return;
+    }
+    if(P === 'pow'){
+      const r = readPow(raw);
+      if(r.err) return;
+      if(r.e === wanted()) tAdvance = setTimeout(()=>submit(false), 550);
+      else tNudge = setTimeout(()=>softMsg(nudge(r.e)), 1500);
+      return;
+    }
+    if(P === 'num' || P === 'lmul' || P === 'ldiv' || P === 'numq'){
+      const v = numVal(raw);
       if(!Number.isInteger(v)) return;
       if(v === wanted()) tAdvance = setTimeout(()=>submit(false), 450);
       else tNudge = setTimeout(()=>softMsg(nudge(v)), 1500);
@@ -937,58 +1686,269 @@
 
   /* ---------------- controls ---------------- */
 
+  /* student version: an endless, even mix of easy / medium / hard, plus
+     letter-and-number (21v - 35) and same-letter (20b + 30b) problems.
+     Levels are dealt from a shuffled bag of five, so every run of five has one of each,
+     in a different order every time the drill is opened. */
+  let bag = [];
+  function nextLevel(){
+    if(!bag.length){
+      bag = ['easy','medium','hard','const','like'];
+      for(let i=bag.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [bag[i],bag[j]] = [bag[j],bag[i]]; }
+    }
+    return bag.pop();
+  }
   function nextProblem(){
-    const p = randomProblem();
-    $('cexp').value = toText(p);
-    start(p);
+    if(window.parent !== window){ try{ parent.postMessage({ drill:'next' }, '*'); }catch(e){} return; }
+    level = nextLevel();
+    start(randomProblem(level));
   }
   function redo(){
     start({ letters:S.letters, terms:S.terms, g:S.g, ge:S.ge, gs:S.gs });
+    S.redo = true;
   }
 
-  function paintLevel(){
-    document.querySelectorAll('.lvlbtn').forEach(b=>{
-      const on = b.dataset.lv === level;
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+
+  nextProblem();
+  const SEEN = new Set();
+  /* ---- preview: jump straight to the worked-out answer ---- */
+  let pvHist = [], pvIdx = 0;
+  function pvMake(){ return randomProblem(nextLevel()); }
+  function pvShow(){
+    start(pvHist[pvIdx]);
+    S.terms.forEach((t,i)=>{
+      S.qc[i] = t.sign * t.c / G();
+      S.qv[i] = {};
+      S.letters.forEach(L=>{ S.qv[i][L] = (t.ex[L] || 0) - (S.ge[L] || 0); });
     });
+    S.phase = 'done';
+    render();
   }
-  function setLevel(lv){
-    if(lv === level) { nextProblem(); return; }
-    level = lv;
-    paintLevel();
-    nextProblem();
-  }
-  document.querySelectorAll('.lvlbtn').forEach(b=>{
-    b.onclick = ()=>setLevel(b.dataset.lv);
+  document.addEventListener('keydown', e=>{
+    if(!document.body.classList.contains('pv')) return;
+    if(e.key === 'ArrowRight' || e.key === 'Enter'){ e.preventDefault(); try{ parent.postMessage({ drill:'pvkey', d:1 }, '*'); }catch(x){} }
+    else if(e.key === 'ArrowLeft'){ e.preventDefault(); try{ parent.postMessage({ drill:'pvkey', d:-1 }, '*'); }catch(x){} }
   });
-
-  $('negLead').onclick = ()=>{
-    negLead = !negLead;
-    const b = $('negLead');
-    b.classList.toggle('on', negLead);
-    b.setAttribute('aria-pressed', negLead ? 'true' : 'false');
-    nextProblem();
-  };
-
-  $('newRandom').onclick = nextProblem;
-  $('restart').onclick = redo;
-  $('useCustom').onclick = ()=>{
-    const p = parseExpr($('cexp').value);
-    if(!p){ alert('Write something like 24 + 36, 40g^5 + 50g^6, or 225a^3z + 375a^8z^2.'); return; }
-    if(p.err){ alert(p.err); return; }
-    /* follow the level the typed problem belongs to */
-    level = p.letters.length === 0 ? 'easy' : p.letters.length === 1 ? 'medium' : 'hard';
-    paintLevel();
-    start(p);
-  };
-  $('cexp').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); $('useCustom').click(); }});
-
-  paintLevel();
-  start({ letters:['g'],
-          terms:[{c:40,ex:{g:5},sign:1},{c:50,ex:{g:6},sign:1}],
-          g:10, ge:{g:5} });
+  window.addEventListener('message', e=>{
+    const d = e.data || {};
+    if(d.cmd === 'load'){
+      /* no repeats this session: same numbers with a different letter counts as the same problem */
+      level = nextLevel();
+      let p, key, tries = 0;
+      do { p = randomProblem(level); key = plainText(exprText(p.terms, p.letters)).replace(/[a-z]/g,'x'); }
+      while(SEEN.has(key) && ++tries < 300);
+      SEEN.add(key);
+      start(p);
+    }
+    else if(d.cmd === 'pvload'){ document.body.classList.add('pv'); pvHist = [pvMake()]; pvIdx = 0; pvShow(); }
+    else if(d.cmd === 'pvstep'){
+      pvIdx = Math.max(0, pvIdx + d.d);
+      if(pvIdx >= pvHist.length) pvHist.push(pvMake());
+      pvShow();
+    }
+    else if(d.cmd === 'label' && S.phase === 'done'){ const nx = $('next'); if(nx) nx.textContent = d.text; }
+    else if(d.cmd === 'focus'){ const el = $('ans') || $('bring') || $('next'); if(el) el.focus(); }
+  });
 })();
+<\/script>
+</body>
+</html>
 </script>
+
+
+<script>
+/* ============================================================
+   THE SHELL  —  Factoring
+   ------------------------------------------------------------
+   20 factoring problems get turned in. After the 20th the
+   turn-in page comes up; after that, practice keeps going.
+   ============================================================ */
+/* PREVIEW true: a teacher's version that flips through worked problems, nothing turned in */
+const PREVIEW = false;
+const GOAL = 20;
+const DRILL_NAME = 'Factoring';
+
+const $ = id => document.getElementById(id);
+
+let records = [];      // every finished problem: what it was, the answer, whether it went clean
+let served = 0;        // problems put on screen (a problem has to be finished to move on)
+let currentDone = false;
+let autoShown = false; // the turn-in page comes up by itself once, after the 20th
+let submitted = false, submittedAt = 0;
+
+const frame = () => $('f-fac');
+const send = msg => { try { frame().contentWindow.postMessage(msg, '*'); } catch (e) {} };
+
+/* ---------- serving problems ---------- */
+function loadProblem() {
+    served++;
+    currentDone = false;
+    $('problem-title').textContent = served <= GOAL
+        ? `Problem ${served} of ${GOAL}`
+        : `Problem ${served} \u00b7 extra practice`;
+    frame().classList.remove('hide');
+    send({ cmd: 'load' });
+    focusDrill();
+}
+
+function focusDrill() {
+    const f = frame();
+    setTimeout(() => { try { f.focus(); f.contentWindow.focus(); } catch (e) {} send({ cmd: 'focus' }); }, 30);
+}
+
+window.addEventListener('message', e => {
+    if (e.source !== frame().contentWindow || !e.data) return;
+    const d = e.data;
+    if (PREVIEW) { if (d.drill === 'pvkey') pvStep(d.d); return; }
+    if (d.drill === 'solved' && !currentDone) {
+        currentDone = true;
+        records.push({ q: d.q, a: d.a, clean: !!d.clean });
+        // after the 20th, the drill's Next button becomes the way to the turn-in page
+        if (records.length === GOAL && !autoShown) send({ cmd: 'label', text: 'Turn in my work' });
+    }
+    else if (d.drill === 'next' && currentDone) {   // the drill also says 'next' once when it first starts up; ignore that
+        if (records.length >= GOAL && !autoShown) { autoShown = true; showTurnIn(); }
+        else loadProblem();
+    }
+});
+
+/* ---------- preview: Previous / Next through worked problems ---------- */
+let pvN = 1;
+function pvStart() {
+    const h = document.querySelector('.problem-header');
+    h.innerHTML = '<span class="pv-title">Preview <span id="pv-n"></span></span>'
+        + '<span class="pv-nav">'
+        + '<button type="button" class="pv-btn" id="pv-prev">&larr; Previous</button>'
+        + '<button type="button" class="pv-btn pv-main" id="pv-next">Next &rarr;</button></span>';
+    $('pv-prev').onclick = () => pvStep(-1);
+    $('pv-next').onclick = () => pvStep(1);
+    document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowRight') { e.preventDefault(); pvStep(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); pvStep(-1); }
+    });
+    frame().classList.remove('hide');
+    send({ cmd: 'pvload' });
+    pvPaint();
+}
+function pvStep(d) {
+    if (pvN + d < 1) return;
+    pvN += d;
+    send({ cmd: 'pvstep', d: d });
+    pvPaint();
+}
+function pvPaint() {
+    $('pv-n').textContent = `\u00b7 problem ${pvN}`;
+    $('pv-prev').disabled = pvN <= 1;
+}
+
+/* ---------- start once the drill has loaded ---------- */
+function unescape(t) { return t.replace(/<\\\/script/g, '<' + '/script').replace(/<\\!--/g, '<!--'); }
+frame().addEventListener('load', () => {
+    $('loading').classList.add('off');
+    if (PREVIEW) pvStart(); else loadProblem();
+}, { once: true });
+frame().srcdoc = unescape($('src-fac').textContent);
+
+/* ============================================================
+   Turning it in
+   ------------------------------------------------------------
+   After the 20th problem the student lands on a page with their
+   work and a form that posts to the class Google Form. The Turn in
+   button at the top opens the same page at any time, so a student
+   who runs out of time can send what they have; they can go back,
+   keep working, and send again (the newer one counts).
+   ============================================================ */
+const escHtml = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const cleanCount = () => records.filter(r => r.clean).length;
+
+function showTurnIn() {
+    const done = records.length, clean = cleanCount();
+    if (done >= GOAL) {
+        $('ti-title').textContent = done > GOAL ? `${done} problems done` : `All ${GOAL} done`;
+        $('ti-sub').textContent = 'Enter your period and name to turn in your work. '
+            + 'After that you can keep practicing as long as you like.';
+        $('ti-after-lab').textContent = 'Want more practice?';
+        $('ti-back').textContent = 'Keep practicing';
+    } else {
+        $('ti-title').textContent = 'Turn in your work so far';
+        $('ti-sub').textContent = `You have finished ${done} of ${GOAL}. Enter your period and name to turn in what you have. `
+            + 'Nothing is lost \u2014 you can go back, keep working, and send it again. The newer one counts.';
+        $('ti-after-lab').textContent = 'Not done yet?';
+        $('ti-back').textContent = 'Go back and keep working';
+    }
+    $('ti-recap').innerHTML =
+        `<div>Problems<b>${done}</b></div>`
+        + `<div>Right the first time<b>${clean}</b></div>`
+        + `<div>Needed a retry<b>${done - clean}</b></div>`;
+    $('ti-log').innerHTML = done
+        ? '<div class="ti-log">' + records.map((r, i) =>
+            `<div class="ti-row"><span class="ti-n">${i + 1}.</span>`
+            + `<span class="ti-q">${escHtml(r.q)} = ${escHtml(r.a)}</span>`
+            + `<span class="ti-k${r.clean ? '' : ' retry'}">${r.clean ? 'first try' : 'retry'}</span></div>`
+          ).join('') + '</div>'
+        : '<div class="ti-empty">Nothing finished yet \u2014 finished problems show up here.</div>';
+
+    const more = submitted && done > submittedAt;
+    $('gform').classList.toggle('off', submitted && !more);
+    if (more) {
+        $('ti-feedback').innerHTML = `<span class="note">You turned in ${submittedAt} \u2014 you have ${done} now. `
+            + 'Send it again and the newer one counts.</span>';
+        $('ti-submit').textContent = 'Send updated results';
+    } else if (!submitted) {
+        $('ti-feedback').innerHTML = '';
+        $('ti-submit').textContent = 'Submit Results';
+    }
+    $('formScore').value = done;
+
+    $('turnin').classList.remove('off');
+    $('turnin').scrollTop = 0;
+    if (!submitted || more) setTimeout(() => $(submitted ? 'ti-submit' : 'studentPeriod').focus(), 50);
+}
+
+// back to the drill: a finished problem moves on, a half-done one is left right where it was
+function backToPractice() {
+    $('turnin').classList.add('off');
+    if (currentDone && (records.length !== GOAL || autoShown)) {
+        if (records.length >= GOAL) autoShown = true;
+        loadProblem();
+    }
+    else focusDrill();
+}
+
+function onHiddenFrameLoad() {
+    if (!submitted) return;
+    $('ti-feedback').innerHTML = '<span class="ok">Successfully submitted. '
+        + (records.length >= GOAL
+            ? 'You can close this page, or keep practicing.'
+            : 'You can close this page, or go back and keep working.')
+        + '</span>';
+    $('gform').classList.add('off');
+}
+
+function nameCheck() {
+    const ln = $('lastName').value.trim(), fn = $('firstName').value.trim();
+    const row = (t, v) => `<div class="row"><span class="t">${t}</span>`
+        + `<span class="v${v ? '' : ' empty'}">${v ? escHtml(v) : '\u2014'}</span></div>`;
+    $('nameCheck').innerHTML =
+        '<div class="head">This is what will be sent \u2014 check it is the right way round:</div>'
+        + row('Last name', ln) + row('First name', fn) + row('Roll call', ln && fn ? `${ln}, ${fn}` : '');
+}
+['lastName', 'firstName'].forEach(id => $(id).addEventListener('input', nameCheck));
+nameCheck();
+
+$('gform').addEventListener('submit', () => {
+    const ln = $('lastName').value.trim(), fn = $('firstName').value.trim();
+    $('studentName').value =
+        `Period ${$('studentPeriod').value.trim()} \u2014 ${ln} \u2014 ${fn}`
+        + ` \u2014 ${cleanCount()} clean solves \u2014 ${DRILL_NAME} (${records.length} problems)`;
+    $('formScore').value = records.length;
+    submitted = true;
+    submittedAt = records.length;
+});
+
+$('ti-back').addEventListener('click', backToPractice);
+$('turnin-link').addEventListener('click', showTurnIn);
+</script>
+
 </body>
 </html>
